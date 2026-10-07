@@ -1,8 +1,13 @@
 <!-- src/lib/components/Results.svelte -->
 <script lang="ts">
 	import type { Snapshot } from "#lib/engine/index.ts";
+	import type { RunSummary } from "#lib/stores/test.svelte.ts";
 
-	let { snapshot, onrestart }: { snapshot: Snapshot; onrestart: () => void } = $props();
+	let {
+		snapshot,
+		run,
+		onrestart,
+	}: { snapshot: Snapshot; run: RunSummary | null; onrestart: () => void } = $props();
 
 	const stats = $derived(snapshot.stats);
 	const seconds = $derived((Math.round(stats.elapsedMs / 100) / 10).toFixed(1));
@@ -34,6 +39,18 @@
 			<dd>{seconds}s</dd>
 		</div>
 	</dl>
+
+	{#if run}
+		<p class="best" class:record={run.isNewBest}>
+			{#if run.isNewBest}
+				new best · previous {Math.round(run.previousBest ?? 0)} wpm
+			{:else if run.previousBest !== null}
+				best {Math.round(run.previousBest)} wpm
+			{:else}
+				first result saved
+			{/if}
+		</p>
+	{/if}
 
 	<button type="button" onclick={onrestart}>Restart (Esc)</button>
 </section>
@@ -75,6 +92,17 @@
 
 	.detail dd {
 		font-size: 1.4rem;
+	}
+
+	.best {
+		margin: 0;
+		color: var(--muted);
+		font-family: var(--font-mono);
+		font-size: 0.95rem;
+	}
+
+	.best.record {
+		color: var(--accent);
 	}
 
 	button {

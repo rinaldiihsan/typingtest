@@ -2,6 +2,7 @@
 <script lang="ts">
 	import { onDestroy } from "svelte";
 	import Controls from "#lib/components/Controls.svelte";
+	import History from "#lib/components/History.svelte";
 	import Keyboard3D from "#lib/components/Keyboard3D.svelte";
 	import Results from "#lib/components/Results.svelte";
 	import WordsView from "#lib/components/WordsView.svelte";
@@ -9,6 +10,7 @@
 
 	const test = new TypingTest();
 	let keyboard: ReturnType<typeof Keyboard3D> | undefined = $state();
+	let showHistory = $state(false);
 	const snap = $derived(test.snapshot);
 
 	const progress = $derived.by(() => {
@@ -28,14 +30,16 @@
 
 		if (event.key === "Escape") {
 			event.preventDefault();
-			test.restart();
+			if (showHistory) showHistory = false;
+			else test.restart();
 			return;
 		}
 
+		if (showHistory) return;
+
 		if (snap.status === "finished") return;
 
-		const isTypingKey =
-			event.key === " " || event.key === "Backspace" || event.key.length === 1;
+		const isTypingKey = event.key === " " || event.key === "Backspace" || event.key.length === 1;
 		if (!isTypingKey) return;
 
 		// Stops page scroll on Space and Firefox quick find on "/" and "'".
@@ -58,13 +62,32 @@
 
 <main>
 	<header>
-		<h1>typing test</h1>
+		<div class="top">
+			<h1>typing test</h1>
+			<button
+				type="button"
+				class="link"
+				aria-pressed={showHistory}
+				onclick={(e) => {
+					showHistory = !showHistory;
+					e.currentTarget.blur();
+				}}
+			>
+				history
+			</button>
+		</div>
 		<Controls {test} />
 	</header>
 
 	<section class="stage" aria-label="Typing area">
-		{#if snap.status === "finished"}
-			<Results snapshot={snap} onrestart={() => test.restart()} />
+		{#if showHistory}
+			<History
+				entries={test.history}
+				onclear={() => test.clearHistory()}
+				onclose={() => (showHistory = false)}
+			/>
+		{:else if snap.status === "finished"}
+			<Results snapshot={snap} run={test.lastRun} onrestart={() => test.restart()} />
 		{:else}
 			<div class="hud" aria-live="off">
 				<span class="progress">{progress}</span>
@@ -77,7 +100,7 @@
 	<Keyboard3D bind:this={keyboard} />
 
 	<footer>
-		<kbd>Esc</kbd> restart
+		<kbd>Esc</kbd> restart / back
 	</footer>
 </main>
 
@@ -96,6 +119,33 @@
 		display: flex;
 		flex-direction: column;
 		gap: 1.25rem;
+	}
+
+	.top {
+		display: flex;
+		align-items: baseline;
+		justify-content: space-between;
+	}
+
+	.link {
+		font: inherit;
+		font-size: 0.9rem;
+		color: var(--muted);
+		background: transparent;
+		border: 0;
+		border-radius: 6px;
+		padding: 0.25rem 0.5rem;
+		cursor: pointer;
+	}
+
+	.link:hover,
+	.link[aria-pressed="true"] {
+		color: var(--accent);
+	}
+
+	.link:focus-visible {
+		outline: 2px solid var(--accent);
+		outline-offset: 2px;
 	}
 
 	h1 {
