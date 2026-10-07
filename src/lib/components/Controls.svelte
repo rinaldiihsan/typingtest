@@ -1,5 +1,8 @@
 <!-- src/lib/components/Controls.svelte -->
 <script lang="ts">
+	import Languages from "@lucide/svelte/icons/languages";
+	import Timer from "@lucide/svelte/icons/timer";
+	import WholeWord from "@lucide/svelte/icons/whole-word";
 	import type { Language, TypingTest } from "#lib/stores/test.svelte.ts";
 
 	let { test }: { test: TypingTest } = $props();
@@ -28,6 +31,7 @@
 
 <div class="controls">
 	<div class="group" role="group" aria-label="Language">
+		<span class="label"><Languages size={15} aria-hidden="true" /></span>
 		{#each LANGUAGES as lang (lang.value)}
 			<button
 				type="button"
@@ -40,7 +44,7 @@
 	</div>
 
 	<div class="group" role="group" aria-label="Time">
-		<span class="label">time</span>
+		<span class="label"><Timer size={15} aria-hidden="true" />time</span>
 		{#each TIMES as seconds (seconds)}
 			<button
 				type="button"
@@ -53,7 +57,7 @@
 	</div>
 
 	<div class="group" role="group" aria-label="Words">
-		<span class="label">words</span>
+		<span class="label"><WholeWord size={15} aria-hidden="true" />words</span>
 		{#each WORD_COUNTS as count (count)}
 			<button
 				type="button"
@@ -81,6 +85,9 @@
 	}
 
 	.label {
+		display: inline-flex;
+		align-items: center;
+		gap: 0.35rem;
 		margin-right: 0.35rem;
 		color: var(--muted);
 		font-size: 0.8rem;
@@ -97,6 +104,14 @@
 		border-radius: 6px;
 		padding: 0.3rem 0.6rem;
 		cursor: pointer;
+		transition:
+			color 120ms ease-out,
+			background-color 120ms ease-out,
+			transform 80ms ease-out;
+	}
+
+	button:active {
+		transform: scale(0.95);
 	}
 
 	button:hover {

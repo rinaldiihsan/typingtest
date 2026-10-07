@@ -1,5 +1,7 @@
 <!-- src/routes/+page.svelte -->
 <script lang="ts">
+	import Keyboard from "@lucide/svelte/icons/keyboard";
+	import RotateCcwClock from "@lucide/svelte/icons/rotate-ccw-clock";
 	import { onDestroy } from "svelte";
 	import { createKeyClick } from "#lib/audio/keyclick.ts";
 	import Controls from "#lib/components/Controls.svelte";
@@ -74,7 +76,7 @@
 <main>
 	<header>
 		<div class="top">
-			<h1>typing test</h1>
+			<h1><Keyboard size={18} aria-hidden="true" />typing test</h1>
 			<div class="tools">
 				<PrefsBar {prefs} />
 				<button
@@ -86,6 +88,7 @@
 						e.currentTarget.blur();
 					}}
 				>
+					<RotateCcwClock size={16} aria-hidden="true" />
 					history
 				</button>
 			</div>
@@ -120,6 +123,7 @@
 
 <style>
 	main {
+		animation: rise 400ms ease-out both;
 		display: flex;
 		flex-direction: column;
 		gap: 3rem;
@@ -149,6 +153,12 @@
 	}
 
 	.link {
+		display: inline-flex;
+		align-items: center;
+		gap: 0.4rem;
+		transition:
+			color 120ms ease-out,
+			transform 80ms ease-out;
 		font: inherit;
 		font-size: 0.9rem;
 		color: var(--muted);
@@ -157,6 +167,10 @@
 		border-radius: 6px;
 		padding: 0.25rem 0.5rem;
 		cursor: pointer;
+	}
+
+	.link:active {
+		transform: scale(0.95);
 	}
 
 	.link:hover,
@@ -170,6 +184,9 @@
 	}
 
 	h1 {
+		display: inline-flex;
+		align-items: center;
+		gap: 0.5rem;
 		margin: 0;
 		font-family: var(--font-mono);
 		font-size: 1.1rem;

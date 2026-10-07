@@ -10,6 +10,8 @@ export type CharState = "correct" | "incorrect" | "extra" | "untyped";
 export interface CharView {
 	char: string;
 	state: CharState;
+	/** What the user actually typed, set only for incorrect characters. */
+	typed?: string;
 }
 
 export interface Stats {

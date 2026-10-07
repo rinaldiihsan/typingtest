@@ -1,5 +1,7 @@
 <!-- src/lib/components/Results.svelte -->
 <script lang="ts">
+	import RotateCcw from "@lucide/svelte/icons/rotate-ccw";
+	import Trophy from "@lucide/svelte/icons/trophy";
 	import type { Snapshot } from "#lib/engine/index.ts";
 	import type { RunSummary } from "#lib/stores/test.svelte.ts";
 
@@ -43,6 +45,7 @@
 	{#if run}
 		<p class="best" class:record={run.isNewBest}>
 			{#if run.isNewBest}
+				<Trophy size={16} aria-hidden="true" />
 				new best · previous {Math.round(run.previousBest ?? 0)} wpm
 			{:else if run.previousBest !== null}
 				best {Math.round(run.previousBest)} wpm
@@ -52,7 +55,9 @@
 		</p>
 	{/if}
 
-	<button type="button" onclick={onrestart}>Restart (Esc)</button>
+	<button type="button" onclick={onrestart}
+		><RotateCcw size={16} aria-hidden="true" />Restart (Esc)</button
+	>
 </section>
 
 <style>
@@ -62,6 +67,37 @@
 		gap: 1.75rem;
 		align-items: flex-start;
 		min-height: calc(var(--line) * 3);
+	}
+
+	.main > div,
+	.detail > div,
+	.best,
+	button {
+		animation: rise 360ms ease-out both;
+	}
+
+	.main > div:nth-child(2) {
+		animation-delay: 70ms;
+	}
+
+	.detail > div:nth-child(1) {
+		animation-delay: 130ms;
+	}
+
+	.detail > div:nth-child(2) {
+		animation-delay: 170ms;
+	}
+
+	.detail > div:nth-child(3) {
+		animation-delay: 210ms;
+	}
+
+	.best {
+		animation-delay: 250ms;
+	}
+
+	button {
+		animation-delay: 300ms;
 	}
 
 	dl {
@@ -101,8 +137,17 @@
 		font-size: 0.95rem;
 	}
 
+	.best {
+		display: inline-flex;
+		align-items: center;
+		gap: 0.45rem;
+	}
+
 	.best.record {
 		color: var(--accent);
+		animation-name: rise, pop;
+		animation-duration: 360ms, 450ms;
+		animation-delay: 250ms, 600ms;
 	}
 
 	button {
@@ -114,6 +159,13 @@
 		border-radius: 8px;
 		padding: 0.55rem 1.1rem;
 		cursor: pointer;
+		display: inline-flex;
+		align-items: center;
+		gap: 0.5rem;
+	}
+
+	button:active {
+		transform: scale(0.96);
 	}
 
 	button:hover {

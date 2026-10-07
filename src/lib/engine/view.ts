@@ -7,10 +7,11 @@ export function getCharViews(target: string, typed: string): CharView[] {
 
 	for (let i = 0; i < target.length; i++) {
 		if (i < typed.length) {
-			views.push({
-				char: target[i],
-				state: typed[i] === target[i] ? "correct" : "incorrect",
-			});
+			views.push(
+				typed[i] === target[i]
+					? { char: target[i], state: "correct" }
+					: { char: target[i], state: "incorrect", typed: typed[i] },
+			);
 		} else {
 			views.push({ char: target[i], state: "untyped" });
 		}

@@ -2,23 +2,25 @@
 <script lang="ts">
 	import { getCharViews } from "#lib/engine/index.ts";
 
-	let {
-		target,
-		typed,
-		active,
-	}: { target: string; typed: string; active: boolean } = $props();
+	let { target, typed, active }: { target: string; typed: string; active: boolean } = $props();
 
 	const views = $derived(getCharViews(target, typed));
 	const wrong = $derived(!active && typed.length > 0 && typed !== target);
+
+	// Marks the character the caret sits on, so the parent can measure it.
+	function caretSide(index: number): "before" | "after" | undefined {
+		if (!active) return undefined;
+		if (index === typed.length) return "before";
+		if (index === views.length - 1 && typed.length >= views.length) return "after";
+		return undefined;
+	}
 </script>
 
 <span class="word" class:wrong data-active={active ? "true" : undefined}>
 	{#each views as view, i (i)}
-		<span
-			class="char {view.state}"
-			class:caret-before={active && i === typed.length}
-			class:caret-after={active && i === views.length - 1 && typed.length >= views.length}
-			>{view.char}</span
+		<span class="char {view.state}" data-caret={caretSide(i)}
+			>{view.char}{#if view.typed}<span class="typed" aria-hidden="true">{view.typed}</span
+				>{/if}</span
 		>
 	{/each}
 </span>
@@ -39,6 +41,7 @@
 	.char {
 		position: relative;
 		color: var(--untyped);
+		transition: color 90ms ease-out;
 	}
 
 	.char.correct {
@@ -54,22 +57,29 @@
 		opacity: 0.7;
 	}
 
-	.caret-before::before,
-	.caret-after::after {
-		content: "";
+	/* The wrong letter the user typed, shown above the expected one. */
+	.typed {
 		position: absolute;
-		top: 18%;
-		bottom: 18%;
-		width: 2px;
-		background: var(--accent);
-		border-radius: 1px;
+		top: -0.3rem;
+		left: 50%;
+		translate: -50% 0;
+		font-size: 0.5em;
+		line-height: 1;
+		font-weight: 600;
+		color: var(--error);
+		text-decoration: none;
+		animation: typed-in 150ms ease-out;
 	}
 
-	.caret-before::before {
-		left: -1px;
-	}
+	@keyframes typed-in {
+		from {
+			opacity: 0;
+			transform: translateY(40%) scale(0.6);
+		}
 
-	.caret-after::after {
-		right: -1px;
+		to {
+			opacity: 1;
+			transform: none;
+		}
 	}
 </style>

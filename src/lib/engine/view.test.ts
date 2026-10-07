@@ -29,6 +29,11 @@ describe("getCharViews", () => {
 		expect(views.map((v) => v.char).join("")).toBe("abxy");
 	});
 
+	it("records the typed letter on incorrect characters only", () => {
+		const views = getCharViews("abc", "axc");
+		expect(views.map((v) => v.typed)).toEqual([undefined, "x", undefined]);
+	});
+
 	it("keeps the target letter for incorrect characters", () => {
 		expect(getCharViews("ab", "x")[0].char).toBe("a");
 	});

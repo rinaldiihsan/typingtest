@@ -1,8 +1,17 @@
 <!-- src/lib/components/PrefsBar.svelte -->
 <script lang="ts">
-	import type { Preferences } from "#lib/stores/prefs.svelte.ts";
+	import Monitor from "@lucide/svelte/icons/monitor";
+	import Moon from "@lucide/svelte/icons/moon";
+	import Sun from "@lucide/svelte/icons/sun";
+	import Volume2 from "@lucide/svelte/icons/volume-2";
+	import VolumeX from "@lucide/svelte/icons/volume-x";
+	import type { Preferences, Theme } from "#lib/stores/prefs.svelte.ts";
 
 	let { prefs }: { prefs: Preferences } = $props();
+
+	const THEME_ICONS: Record<Theme, typeof Sun> = { system: Monitor, light: Sun, dark: Moon };
+	const ThemeIcon = $derived(THEME_ICONS[prefs.theme]);
+	const SoundIcon = $derived(prefs.sound ? Volume2 : VolumeX);
 
 	// Release focus so Space keeps feeding the test instead of re-clicking the button.
 	function run(event: MouseEvent, action: () => void) {
@@ -15,17 +24,21 @@
 	<button
 		type="button"
 		title="Switch theme"
+		aria-label="Theme: {prefs.theme}. Click to change."
 		onclick={(e) => run(e, () => prefs.cycleTheme())}
 	>
-		theme: {prefs.theme}
+		<ThemeIcon size={16} aria-hidden="true" />
+		{prefs.theme}
 	</button>
 	<button
 		type="button"
 		aria-pressed={prefs.sound}
 		title="Toggle key sound"
+		aria-label="Key sound: {prefs.sound ? "on" : "off"}"
 		onclick={(e) => run(e, () => prefs.toggleSound())}
 	>
-		sound: {prefs.sound ? "on" : "off"}
+		<SoundIcon size={16} aria-hidden="true" />
+		{prefs.sound ? "on" : "off"}
 	</button>
 </div>
 
@@ -44,6 +57,16 @@
 		border-radius: 6px;
 		padding: 0.25rem 0.5rem;
 		cursor: pointer;
+		display: inline-flex;
+		align-items: center;
+		gap: 0.4rem;
+		transition:
+			color 120ms ease-out,
+			transform 80ms ease-out;
+	}
+
+	button:active {
+		transform: scale(0.95);
 	}
 
 	button:hover,

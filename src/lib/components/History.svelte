@@ -1,5 +1,7 @@
 <!-- src/lib/components/History.svelte -->
 <script lang="ts">
+	import ArrowLeft from "@lucide/svelte/icons/arrow-left";
+	import Trash from "@lucide/svelte/icons/trash";
 	import type { HistoryEntry } from "#lib/storage/storage.ts";
 
 	let {
@@ -55,9 +57,11 @@
 	{/if}
 
 	<div class="actions">
-		<button type="button" onclick={onclose}>Back (Esc)</button>
+		<button type="button" onclick={onclose}><ArrowLeft size={16} aria-hidden="true" />Back (Esc)</button>
 		{#if recent.length > 0}
-			<button type="button" class="ghost" onclick={onclear}>Clear history</button>
+			<button type="button" class="ghost" onclick={onclear}
+				><Trash size={16} aria-hidden="true" />Clear history</button
+			>
 		{/if}
 	</div>
 </section>
@@ -69,6 +73,7 @@
 		gap: 1.5rem;
 		align-items: flex-start;
 		min-height: calc(var(--line) * 3);
+		animation: rise 320ms ease-out both;
 	}
 
 	.empty {
@@ -101,6 +106,22 @@
 		color: var(--accent);
 	}
 
+	tbody tr {
+		animation: rise 300ms ease-out both;
+	}
+
+	tbody tr:nth-child(2) {
+		animation-delay: 30ms;
+	}
+
+	tbody tr:nth-child(3) {
+		animation-delay: 60ms;
+	}
+
+	tbody tr:nth-child(n + 4) {
+		animation-delay: 90ms;
+	}
+
 	.actions {
 		display: flex;
 		gap: 0.5rem;
@@ -115,6 +136,16 @@
 		border-radius: 8px;
 		padding: 0.5rem 1rem;
 		cursor: pointer;
+		display: inline-flex;
+		align-items: center;
+		gap: 0.45rem;
+		transition:
+			filter 120ms ease-out,
+			transform 80ms ease-out;
+	}
+
+	button:active {
+		transform: scale(0.96);
 	}
 
 	button.ghost {
