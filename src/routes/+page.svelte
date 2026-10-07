@@ -2,11 +2,13 @@
 <script lang="ts">
 	import { onDestroy } from "svelte";
 	import Controls from "#lib/components/Controls.svelte";
+	import Keyboard3D from "#lib/components/Keyboard3D.svelte";
 	import Results from "#lib/components/Results.svelte";
 	import WordsView from "#lib/components/WordsView.svelte";
 	import { TypingTest } from "#lib/stores/test.svelte.ts";
 
 	const test = new TypingTest();
+	let keyboard: ReturnType<typeof Keyboard3D> | undefined = $state();
 	const snap = $derived(test.snapshot);
 
 	const progress = $derived.by(() => {
@@ -20,6 +22,8 @@
 	const liveWpm = $derived(snap.status === "running" ? Math.round(snap.stats.wpm) : 0);
 
 	function onkeydown(event: KeyboardEvent) {
+		if (!event.repeat) keyboard?.press(event.code);
+
 		if (event.ctrlKey || event.metaKey || event.altKey || event.isComposing) return;
 
 		if (event.key === "Escape") {
@@ -39,6 +43,10 @@
 		test.press(event.key);
 	}
 
+	function onkeyup(event: KeyboardEvent) {
+		keyboard?.release(event.code);
+	}
+
 	onDestroy(() => test.destroy());
 </script>
 
@@ -46,7 +54,7 @@
 	<title>Typing Test</title>
 </svelte:head>
 
-<svelte:window {onkeydown} />
+<svelte:window {onkeydown} {onkeyup} onblur={() => keyboard?.releaseAll()} />
 
 <main>
 	<header>
@@ -65,6 +73,8 @@
 			<WordsView snapshot={snap} />
 		{/if}
 	</section>
+
+	<Keyboard3D bind:this={keyboard} />
 
 	<footer>
 		<kbd>Esc</kbd> restart
