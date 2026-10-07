@@ -8,6 +8,13 @@ export interface Settings {
 	mode: Mode;
 }
 
+export type Theme = "system" | "light" | "dark";
+
+export interface Preferences {
+	theme: Theme;
+	sound: boolean;
+}
+
 export interface HistoryEntry {
 	/** Unix time in ms when the test finished. */
 	at: number;
@@ -31,10 +38,17 @@ export const DEFAULT_SETTINGS: Settings = {
 	mode: { type: "time", seconds: 30 },
 };
 
+export const DEFAULT_PREFERENCES: Preferences = {
+	theme: "system",
+	sound: false,
+};
+
 export const HISTORY_LIMIT = 200;
 
 const SETTINGS_KEY = "typing-test:settings";
 const HISTORY_KEY = "typing-test:history";
+// Also read by the inline script in src/app.html: keep both in sync.
+const PREFERENCES_KEY = "typing-test:preferences";
 
 function isRecord(value: unknown): value is Record<string, unknown> {
 	return typeof value === "object" && value !== null;
@@ -42,6 +56,10 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 
 function isLanguage(value: unknown): value is Language {
 	return value === "en" || value === "id";
+}
+
+function isTheme(value: unknown): value is Theme {
+	return value === "system" || value === "light" || value === "dark";
 }
 
 function isPositiveInt(value: unknown, max: number): value is number {
@@ -143,6 +161,8 @@ function writeJson(
 export interface AppStorage {
 	loadSettings(): Settings;
 	saveSettings(settings: Settings): void;
+	loadPreferences(): Preferences;
+	savePreferences(preferences: Preferences): void;
 	loadHistory(): HistoryEntry[];
 	saveHistory(history: readonly HistoryEntry[]): void;
 	clearHistory(): void;
@@ -163,6 +183,20 @@ export function createStorage(backend: StorageBackend | null): AppStorage {
 		},
 		saveSettings(settings) {
 			writeJson(backend, SETTINGS_KEY, settings);
+		},
+		loadPreferences() {
+			const raw = readJson(backend, PREFERENCES_KEY);
+			if (!isRecord(raw)) return { ...DEFAULT_PREFERENCES };
+			return {
+				theme: isTheme(raw.theme) ? raw.theme : DEFAULT_PREFERENCES.theme,
+				sound:
+					typeof raw.sound === "boolean"
+						? raw.sound
+						: DEFAULT_PREFERENCES.sound,
+			};
+		},
+		savePreferences(preferences) {
+			writeJson(backend, PREFERENCES_KEY, preferences);
 		},
 		loadHistory() {
 			const raw = readJson(backend, HISTORY_KEY);

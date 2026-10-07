@@ -4,6 +4,7 @@ import {
 	appendResult,
 	bestWpm,
 	createStorage,
+	DEFAULT_PREFERENCES,
 	DEFAULT_SETTINGS,
 	HISTORY_LIMIT,
 	type HistoryEntry,
@@ -103,6 +104,38 @@ describe("settings", () => {
 		expect(storage.loadSettings()).toEqual(DEFAULT_SETTINGS);
 		expect(() => storage.saveHistory([entry()])).not.toThrow();
 		expect(() => storage.clearHistory()).not.toThrow();
+	});
+});
+
+describe("preferences", () => {
+	it("returns defaults when nothing is stored", () => {
+		expect(createStorage(fakeBackend()).loadPreferences()).toEqual(
+			DEFAULT_PREFERENCES,
+		);
+	});
+
+	it("round-trips saved preferences", () => {
+		const storage = createStorage(fakeBackend());
+		storage.savePreferences({ theme: "dark", sound: true });
+		expect(storage.loadPreferences()).toEqual({ theme: "dark", sound: true });
+	});
+
+	it("falls back per field when stored values are invalid", () => {
+		const backend = fakeBackend({
+			"typing-test:preferences": JSON.stringify({ theme: "neon", sound: true }),
+		});
+		expect(createStorage(backend).loadPreferences()).toEqual({
+			theme: "system",
+			sound: true,
+		});
+	});
+
+	it("survives corrupt JSON and a missing backend", () => {
+		const backend = fakeBackend({ "typing-test:preferences": "nope{" });
+		expect(createStorage(backend).loadPreferences()).toEqual(
+			DEFAULT_PREFERENCES,
+		);
+		expect(createStorage(null).loadPreferences()).toEqual(DEFAULT_PREFERENCES);
 	});
 });
 

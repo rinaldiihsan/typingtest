@@ -1,0 +1,6 @@
+<!-- static/favicon.svg -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+	<rect x="4" y="10" width="56" height="46" rx="12" fill="#1f252c" />
+	<rect x="9" y="8" width="46" height="40" rx="10" fill="#8fa8ff" />
+	<path d="M22 22h20M32 22v16" stroke="#14181d" stroke-width="6" stroke-linecap="round" fill="none" />
+</svg>

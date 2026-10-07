@@ -5,6 +5,18 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="text-scale" content="scale" />
+    <meta name="description" content="A lightweight typing test in English and Indonesian with a 3D keyboard." />
+    <link rel="icon" href="%sveltekit.assets%/favicon.svg" type="image/svg+xml" />
+    <script>
+      // Apply the saved theme before first paint to avoid a flash.
+      // The storage key must match PREFERENCES_KEY in src/lib/storage/storage.ts.
+      try {
+        var p = JSON.parse(localStorage.getItem('typing-test:preferences'));
+        if (p && (p.theme === 'light' || p.theme === 'dark')) {
+          document.documentElement.setAttribute('data-theme', p.theme);
+        }
+      } catch (e) {}
+    </script>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400..700&family=Geist+Mono:wght@400..700&display=swap" rel="stylesheet" />

@@ -1,14 +1,19 @@
 <!-- src/routes/+page.svelte -->
 <script lang="ts">
 	import { onDestroy } from "svelte";
+	import { createKeyClick } from "#lib/audio/keyclick.ts";
 	import Controls from "#lib/components/Controls.svelte";
 	import History from "#lib/components/History.svelte";
 	import Keyboard3D from "#lib/components/Keyboard3D.svelte";
+	import PrefsBar from "#lib/components/PrefsBar.svelte";
 	import Results from "#lib/components/Results.svelte";
 	import WordsView from "#lib/components/WordsView.svelte";
+	import { Preferences } from "#lib/stores/prefs.svelte.ts";
 	import { TypingTest } from "#lib/stores/test.svelte.ts";
 
 	const test = new TypingTest();
+	const prefs = new Preferences();
+	const click = createKeyClick();
 	let keyboard: ReturnType<typeof Keyboard3D> | undefined = $state();
 	let showHistory = $state(false);
 	const snap = $derived(test.snapshot);
@@ -24,7 +29,10 @@
 	const liveWpm = $derived(snap.status === "running" ? Math.round(snap.stats.wpm) : 0);
 
 	function onkeydown(event: KeyboardEvent) {
-		if (!event.repeat) keyboard?.press(event.code);
+		if (!event.repeat) {
+			keyboard?.press(event.code);
+			if (prefs.sound) click.play();
+		}
 
 		if (event.ctrlKey || event.metaKey || event.altKey || event.isComposing) return;
 
@@ -51,7 +59,10 @@
 		keyboard?.release(event.code);
 	}
 
-	onDestroy(() => test.destroy());
+	onDestroy(() => {
+		test.destroy();
+		click.dispose();
+	});
 </script>
 
 <svelte:head>
@@ -64,17 +75,20 @@
 	<header>
 		<div class="top">
 			<h1>typing test</h1>
-			<button
-				type="button"
-				class="link"
-				aria-pressed={showHistory}
-				onclick={(e) => {
-					showHistory = !showHistory;
-					e.currentTarget.blur();
-				}}
-			>
-				history
-			</button>
+			<div class="tools">
+				<PrefsBar {prefs} />
+				<button
+					type="button"
+					class="link"
+					aria-pressed={showHistory}
+					onclick={(e) => {
+						showHistory = !showHistory;
+						e.currentTarget.blur();
+					}}
+				>
+					history
+				</button>
+			</div>
 		</div>
 		<Controls {test} />
 	</header>
@@ -125,6 +139,13 @@
 		display: flex;
 		align-items: baseline;
 		justify-content: space-between;
+	}
+
+	.tools {
+		display: flex;
+		flex-wrap: wrap;
+		justify-content: flex-end;
+		gap: 0.25rem;
 	}
 
 	.link {
