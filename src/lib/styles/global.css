@@ -1,0 +1,57 @@
+/* src/lib/styles/global.css */
+:root {
+  --bg: #f2f4f6;
+  --fg: #1a2027;
+  --muted: #6b7682;
+  --untyped: #98a2ad;
+  --typed: #1a2027;
+  --accent: #2b5bd7;
+  --error: #d6453d;
+  --surface: #e4e8ec;
+  --line: 2.6rem;
+  --font-ui: 'DM Sans', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --font-mono: 'Geist Mono', ui-monospace, 'Cascadia Code', Consolas, monospace;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    --bg: #14181d;
+    --fg: #dfe4ea;
+    --muted: #7b8794;
+    --untyped: #566170;
+    --typed: #dfe4ea;
+    --accent: #8fa8ff;
+    --error: #ef6b73;
+    --surface: #1f252c;
+    color-scheme: dark;
+  }
+}
+
+:root[data-theme='dark'] {
+  --bg: #14181d;
+  --fg: #dfe4ea;
+  --muted: #7b8794;
+  --untyped: #566170;
+  --typed: #dfe4ea;
+  --accent: #8fa8ff;
+  --error: #ef6b73;
+  --surface: #1f252c;
+  color-scheme: dark;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  background: var(--bg);
+  color: var(--fg);
+  font-family: var(--font-ui);
+  line-height: 1.5;
+}
