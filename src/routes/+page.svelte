@@ -34,7 +34,7 @@
 	function onkeydown(event: KeyboardEvent) {
 		if (!event.repeat) {
 			keyboard?.press(event.code);
-			if (prefs.sound) click.play();
+			if (prefs.sound) click.play(event.key);
 		}
 
 		if (event.ctrlKey || event.metaKey || event.altKey || event.isComposing) return;
