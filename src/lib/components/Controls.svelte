@@ -2,44 +2,58 @@
 <script lang="ts">
 	import AtSign from "@lucide/svelte/icons/at-sign";
 	import CaseUpper from "@lucide/svelte/icons/case-upper";
+	import Check from "@lucide/svelte/icons/check";
+	import ChevronDown from "@lucide/svelte/icons/chevron-down";
 	import Flame from "@lucide/svelte/icons/flame";
 	import Hash from "@lucide/svelte/icons/hash";
 	import Languages from "@lucide/svelte/icons/languages";
-	import Quote from "@lucide/svelte/icons/quote";
-	import Timer from "@lucide/svelte/icons/timer";
-	import WholeWord from "@lucide/svelte/icons/whole-word";
-	import type { QuoteLength, TestOptions } from "#lib/engine/index.ts";
+	import SlidersHorizontal from "@lucide/svelte/icons/sliders-horizontal";
+	import type { Mode, QuoteLength, TestOptions } from "#lib/engine/index.ts";
 	import type { Language, TypingTest } from "#lib/stores/test.svelte.ts";
+	import Popover from "./Popover.svelte";
 
 	let { test }: { test: TypingTest } = $props();
+
+	type ModeType = Mode["type"];
 
 	const LANGUAGES: { value: Language; label: string }[] = [
 		{ value: "en", label: "English" },
 		{ value: "id", label: "Indonesian" },
 	];
+	const MODE_TYPES: { type: ModeType; label: string }[] = [
+		{ type: "time", label: "time" },
+		{ type: "words", label: "words" },
+		{ type: "quote", label: "quote" },
+	];
 	const TIMES = [15, 30, 60];
 	const WORD_COUNTS = [10, 25, 50, 100];
-
 	const QUOTES: QuoteLength[] = ["short", "medium", "long"];
 	const OPTIONS: { name: keyof TestOptions; label: string; Icon: typeof Hash }[] = [
-		{ name: "punctuation", label: "punctuation", Icon: AtSign },
-		{ name: "numbers", label: "numbers", Icon: Hash },
-		{ name: "capitals", label: "capitals", Icon: CaseUpper },
-		{ name: "hard", label: "hard words", Icon: Flame },
+		{ name: "punctuation", label: "Punctuation", Icon: AtSign },
+		{ name: "numbers", label: "Numbers", Icon: Hash },
+		{ name: "capitals", label: "Capitals", Icon: CaseUpper },
+		{ name: "hard", label: "Hard words", Icon: Flame },
 	];
 
-	const isQuote = $derived(test.mode.type === "quote");
+	// Last value used per mode type, so switching tabs returns to it.
+	const remembered: Record<ModeType, Mode> = {
+		time: { type: "time", seconds: 30 },
+		words: { type: "words", count: 25 },
+		quote: { type: "quote", length: "medium" },
+	};
 
-	function isQuoteLength(length: QuoteLength) {
-		return test.mode.type === "quote" && test.mode.length === length;
+	const modeType = $derived(test.mode.type);
+	const isQuote = $derived(modeType === "quote");
+	const anyOption = $derived(!isQuote && Object.values(test.options).some(Boolean));
+	const languageLabel = $derived(LANGUAGES.find((l) => l.value === test.language)?.label);
+
+	function chooseMode(mode: Mode) {
+		remembered[mode.type] = mode;
+		test.setMode(mode);
 	}
 
-	function isTime(seconds: number) {
-		return test.mode.type === "time" && test.mode.seconds === seconds;
-	}
-
-	function isWords(count: number) {
-		return test.mode.type === "words" && test.mode.count === count;
+	function chooseType(type: ModeType) {
+		if (type !== modeType) test.setMode(remembered[type]);
 	}
 
 	// Release focus so Space keeps feeding the test instead of re-clicking the button.
@@ -50,89 +64,123 @@
 </script>
 
 <div class="controls">
-	<div class="group" role="group" aria-label="Language">
-		<Languages size={16} strokeWidth={1.75} aria-hidden="true" />
-		{#each LANGUAGES as lang (lang.value)}
+	<Popover label="Language">
+		{#snippet trigger()}
+			<Languages size={16} strokeWidth={1.75} aria-hidden="true" />
+			{languageLabel}
+			<ChevronDown size={14} strokeWidth={1.75} aria-hidden="true" />
+		{/snippet}
+		{#snippet children(close)}
+			{#each LANGUAGES as lang (lang.value)}
+				<button
+					type="button"
+					class="row"
+					aria-pressed={test.language === lang.value}
+					onclick={(e) =>
+						run(e, () => {
+							test.setLanguage(lang.value);
+							close();
+						})}
+				>
+					{lang.label}
+					{#if test.language === lang.value}
+						<Check size={15} strokeWidth={2} aria-hidden="true" />
+					{/if}
+				</button>
+			{/each}
+		{/snippet}
+	</Popover>
+
+	<span class="rule" aria-hidden="true"></span>
+
+	<div class="group" role="group" aria-label="Mode">
+		{#each MODE_TYPES as item (item.type)}
 			<button
 				type="button"
 				class="opt"
-				aria-pressed={test.language === lang.value}
-				onclick={(e) => run(e, () => test.setLanguage(lang.value))}
+				aria-pressed={modeType === item.type}
+				onclick={(e) => run(e, () => chooseType(item.type))}
 			>
-				{lang.label}
+				{item.label}
 			</button>
 		{/each}
 	</div>
 
 	<span class="rule" aria-hidden="true"></span>
 
-	<div class="group" role="group" aria-label="Time in seconds">
-		<Timer size={16} strokeWidth={1.75} aria-hidden="true" />
-		{#each TIMES as seconds (seconds)}
-			<button
-				type="button"
-				class="opt"
-				aria-pressed={isTime(seconds)}
-				onclick={(e) => run(e, () => test.setMode({ type: "time", seconds }))}
-			>
-				{seconds}
-			</button>
-		{/each}
+	<div class="group" role="group" aria-label="Length">
+		{#if test.mode.type === "time"}
+			{#each TIMES as seconds (seconds)}
+				<button
+					type="button"
+					class="opt"
+					aria-label="{seconds} seconds"
+					aria-pressed={test.mode.type === "time" && test.mode.seconds === seconds}
+					onclick={(e) => run(e, () => chooseMode({ type: "time", seconds }))}
+				>
+					{seconds}
+				</button>
+			{/each}
+		{:else if test.mode.type === "words"}
+			{#each WORD_COUNTS as count (count)}
+				<button
+					type="button"
+					class="opt"
+					aria-label="{count} words"
+					aria-pressed={test.mode.type === "words" && test.mode.count === count}
+					onclick={(e) => run(e, () => chooseMode({ type: "words", count }))}
+				>
+					{count}
+				</button>
+			{/each}
+		{:else}
+			{#each QUOTES as length (length)}
+				<button
+					type="button"
+					class="opt"
+					aria-pressed={test.mode.type === "quote" && test.mode.length === length}
+					onclick={(e) => run(e, () => chooseMode({ type: "quote", length }))}
+				>
+					{length}
+				</button>
+			{/each}
+		{/if}
 	</div>
 
-	<span class="rule" aria-hidden="true"></span>
+	<span class="spacer" aria-hidden="true"></span>
 
-	<div class="group" role="group" aria-label="Number of words">
-		<WholeWord size={16} strokeWidth={1.75} aria-hidden="true" />
-		{#each WORD_COUNTS as count (count)}
-			<button
-				type="button"
-				class="opt"
-				aria-pressed={isWords(count)}
-				onclick={(e) => run(e, () => test.setMode({ type: "words", count }))}
-			>
-				{count}
-			</button>
-		{/each}
-	</div>
-
-	<span class="rule" aria-hidden="true"></span>
-
-	<div class="group" role="group" aria-label="Quote length">
-		<Quote size={16} strokeWidth={1.75} aria-hidden="true" />
-		{#each QUOTES as length (length)}
-			<button
-				type="button"
-				class="opt"
-				aria-pressed={isQuoteLength(length)}
-				onclick={(e) => run(e, () => test.setMode({ type: "quote", length }))}
-			>
-				{length}
-			</button>
-		{/each}
-	</div>
-</div>
-
-<div class="controls options" role="group" aria-label="Text options">
-	{#each OPTIONS as { name, label, Icon } (name)}
-		<button
-			type="button"
-			class="opt toggle"
-			aria-pressed={test.options[name]}
-			disabled={isQuote}
-			onclick={(e) => run(e, () => test.toggleOption(name))}
-		>
-			<Icon size={15} strokeWidth={1.75} aria-hidden="true" />
-			{label}
-		</button>
-	{/each}
+	<Popover label="Text options" dot={anyOption} align="end">
+		{#snippet trigger()}
+			<SlidersHorizontal size={16} strokeWidth={1.75} aria-hidden="true" />
+			Options
+		{/snippet}
+		{#snippet children()}
+			{#each OPTIONS as { name, label, Icon } (name)}
+				<button
+					type="button"
+					class="row"
+					aria-pressed={test.options[name]}
+					disabled={isQuote}
+					onclick={(e) => run(e, () => test.toggleOption(name))}
+				>
+					<span class="label"><Icon size={15} strokeWidth={1.75} aria-hidden="true" />{label}</span>
+					{#if test.options[name] && !isQuote}
+						<Check size={15} strokeWidth={2} aria-hidden="true" />
+					{/if}
+				</button>
+			{/each}
+			{#if isQuote}
+				<p class="note">Quotes are typed as written.</p>
+			{/if}
+		{/snippet}
+	</Popover>
 </div>
 
 <style>
 	.controls {
 		display: flex;
 		flex-wrap: wrap;
-		gap: 0.5rem 1rem;
+		gap: 0.5rem 0.75rem;
 		align-items: center;
 		color: var(--muted);
 	}
@@ -143,35 +191,72 @@
 		gap: 0.2rem;
 	}
 
-	.group :global(svg) {
-		margin-right: 0.35rem;
-		flex: none;
-	}
-
 	.rule {
 		width: 1px;
 		height: 1.1rem;
 		background: var(--rule);
 	}
 
-	.options {
-		margin-top: -1rem;
-		gap: 0.25rem 0.5rem;
+	.spacer {
+		flex: 1;
 	}
 
-	.toggle {
-		display: inline-flex;
+	.row {
+		display: flex;
 		align-items: center;
-		gap: 0.4rem;
+		justify-content: space-between;
+		gap: 1rem;
+		padding: 0.5rem 0.65rem;
+		font: inherit;
+		font-size: 0.95rem;
+		color: var(--muted);
+		text-align: left;
+		background: transparent;
+		border: 0;
+		border-radius: 6px;
+		cursor: pointer;
+		transition:
+			color 140ms ease-out,
+			background-color 140ms ease-out;
 	}
 
-	.toggle:disabled {
+	.row:hover:not(:disabled) {
+		color: var(--fg);
+		background: color-mix(in srgb, var(--fg) 6%, transparent);
+	}
+
+	.row[aria-pressed="true"] {
+		color: var(--accent);
+	}
+
+	.row:disabled {
 		opacity: 0.4;
 		cursor: not-allowed;
 	}
 
+	.row:focus-visible {
+		outline: 2px solid var(--accent);
+		outline-offset: -2px;
+	}
+
+	.label {
+		display: inline-flex;
+		align-items: center;
+		gap: 0.55rem;
+	}
+
+	.note {
+		margin: 0.25rem 0.65rem 0.35rem;
+		font-size: 0.85rem;
+		color: var(--muted);
+	}
+
 	@media (max-width: 720px) {
 		.rule {
+			display: none;
+		}
+
+		.spacer {
 			display: none;
 		}
 	}
