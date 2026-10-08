@@ -9,7 +9,7 @@
 
 	const LANGUAGES: { value: Language; label: string }[] = [
 		{ value: "en", label: "English" },
-		{ value: "id", label: "Indonesia" },
+		{ value: "id", label: "Indonesian" },
 	];
 	const TIMES = [15, 30, 60];
 	const WORD_COUNTS = [10, 25, 50, 100];
@@ -31,10 +31,11 @@
 
 <div class="controls">
 	<div class="group" role="group" aria-label="Language">
-		<span class="label"><Languages size={15} aria-hidden="true" /></span>
+		<Languages size={16} strokeWidth={1.75} aria-hidden="true" />
 		{#each LANGUAGES as lang (lang.value)}
 			<button
 				type="button"
+				class="opt"
 				aria-pressed={test.language === lang.value}
 				onclick={(e) => run(e, () => test.setLanguage(lang.value))}
 			>
@@ -43,11 +44,14 @@
 		{/each}
 	</div>
 
-	<div class="group" role="group" aria-label="Time">
-		<span class="label"><Timer size={15} aria-hidden="true" />time</span>
+	<span class="rule" aria-hidden="true"></span>
+
+	<div class="group" role="group" aria-label="Time in seconds">
+		<Timer size={16} strokeWidth={1.75} aria-hidden="true" />
 		{#each TIMES as seconds (seconds)}
 			<button
 				type="button"
+				class="opt"
 				aria-pressed={isTime(seconds)}
 				onclick={(e) => run(e, () => test.setMode({ type: "time", seconds }))}
 			>
@@ -56,11 +60,14 @@
 		{/each}
 	</div>
 
-	<div class="group" role="group" aria-label="Words">
-		<span class="label"><WholeWord size={15} aria-hidden="true" />words</span>
+	<span class="rule" aria-hidden="true"></span>
+
+	<div class="group" role="group" aria-label="Number of words">
+		<WholeWord size={16} strokeWidth={1.75} aria-hidden="true" />
 		{#each WORD_COUNTS as count (count)}
 			<button
 				type="button"
+				class="opt"
 				aria-pressed={isWords(count)}
 				onclick={(e) => run(e, () => test.setMode({ type: "words", count }))}
 			>
@@ -74,57 +81,31 @@
 	.controls {
 		display: flex;
 		flex-wrap: wrap;
-		gap: 0.75rem 1.5rem;
+		gap: 0.5rem 1rem;
 		align-items: center;
+		color: var(--muted);
 	}
 
 	.group {
 		display: flex;
 		align-items: center;
-		gap: 0.25rem;
+		gap: 0.2rem;
 	}
 
-	.label {
-		display: inline-flex;
-		align-items: center;
-		gap: 0.35rem;
+	.group :global(svg) {
 		margin-right: 0.35rem;
-		color: var(--muted);
-		font-size: 0.8rem;
-		letter-spacing: 0.06em;
-		text-transform: uppercase;
+		flex: none;
 	}
 
-	button {
-		font: inherit;
-		font-size: 0.95rem;
-		color: var(--muted);
-		background: transparent;
-		border: 0;
-		border-radius: 6px;
-		padding: 0.3rem 0.6rem;
-		cursor: pointer;
-		transition:
-			color 120ms ease-out,
-			background-color 120ms ease-out,
-			transform 80ms ease-out;
+	.rule {
+		width: 1px;
+		height: 1.1rem;
+		background: var(--rule);
 	}
 
-	button:active {
-		transform: scale(0.95);
-	}
-
-	button:hover {
-		color: var(--fg);
-	}
-
-	button[aria-pressed="true"] {
-		color: var(--accent);
-		background: var(--surface);
-	}
-
-	button:focus-visible {
-		outline: 2px solid var(--accent);
-		outline-offset: 2px;
+	@media (max-width: 720px) {
+		.rule {
+			display: none;
+		}
 	}
 </style>

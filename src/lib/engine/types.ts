@@ -23,6 +23,14 @@ export interface Stats {
 	elapsedMs: number;
 }
 
+/** One point of the speed-over-time chart. */
+export interface Sample {
+	/** Seconds since the test started. */
+	t: number;
+	wpm: number;
+	raw: number;
+}
+
 export interface Snapshot {
 	status: Status;
 	mode: Mode;

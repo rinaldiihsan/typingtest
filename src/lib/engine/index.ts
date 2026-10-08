@@ -5,6 +5,7 @@ export type {
 	CharState,
 	CharView,
 	Mode,
+	Sample,
 	Snapshot,
 	Stats,
 	Status,

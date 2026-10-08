@@ -172,4 +172,28 @@ describe("TypingTest store", () => {
 			test.destroy();
 		});
 	});
+
+	describe("samples", () => {
+		it("collects about one sample per second and closes with the final one", () => {
+			const test = new TypingTest(createStorage(memoryBackend()));
+			test.setMode({ type: "words", count: 10 });
+			finishWordsTest(test);
+
+			const times = test.samples.map((s) => s.t);
+			expect(times.length).toBeGreaterThanOrEqual(3);
+			expect([...times].sort((a, b) => a - b)).toEqual(times);
+			expect(times.at(-1)).toBeCloseTo(test.snapshot.stats.elapsedMs / 1000, 1);
+			test.destroy();
+		});
+
+		it("starts empty and resets on restart", () => {
+			const test = new TypingTest(createStorage(memoryBackend()));
+			expect(test.samples).toEqual([]);
+			test.setMode({ type: "words", count: 10 });
+			finishWordsTest(test);
+			test.restart();
+			expect(test.samples).toEqual([]);
+			test.destroy();
+		});
+	});
 });

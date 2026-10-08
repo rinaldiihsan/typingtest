@@ -20,62 +20,22 @@
 	}
 </script>
 
-<div class="prefs" role="group" aria-label="Preferences">
-	<button
-		type="button"
-		title="Switch theme"
-		aria-label="Theme: {prefs.theme}. Click to change."
-		onclick={(e) => run(e, () => prefs.cycleTheme())}
-	>
-		<ThemeIcon size={16} aria-hidden="true" />
-		{prefs.theme}
-	</button>
-	<button
-		type="button"
-		aria-pressed={prefs.sound}
-		title="Toggle key sound"
-		aria-label="Key sound: {prefs.sound ? "on" : "off"}"
-		onclick={(e) => run(e, () => prefs.toggleSound())}
-	>
-		<SoundIcon size={16} aria-hidden="true" />
-		{prefs.sound ? "on" : "off"}
-	</button>
-</div>
-
-<style>
-	.prefs {
-		display: flex;
-		gap: 0.25rem;
-	}
-
-	button {
-		font: inherit;
-		font-size: 0.9rem;
-		color: var(--muted);
-		background: transparent;
-		border: 0;
-		border-radius: 6px;
-		padding: 0.25rem 0.5rem;
-		cursor: pointer;
-		display: inline-flex;
-		align-items: center;
-		gap: 0.4rem;
-		transition:
-			color 120ms ease-out,
-			transform 80ms ease-out;
-	}
-
-	button:active {
-		transform: scale(0.95);
-	}
-
-	button:hover,
-	button[aria-pressed="true"] {
-		color: var(--accent);
-	}
-
-	button:focus-visible {
-		outline: 2px solid var(--accent);
-		outline-offset: 2px;
-	}
-</style>
+<button
+	type="button"
+	class="icon-btn"
+	title="Theme: {prefs.theme}"
+	aria-label="Theme: {prefs.theme}. Click to change."
+	onclick={(e) => run(e, () => prefs.cycleTheme())}
+>
+	<ThemeIcon size={18} strokeWidth={1.75} aria-hidden="true" />
+</button>
+<button
+	type="button"
+	class="icon-btn"
+	aria-pressed={prefs.sound}
+	title="Key sound: {prefs.sound ? 'on' : 'off'}"
+	aria-label="Key sound: {prefs.sound ? 'on' : 'off'}"
+	onclick={(e) => run(e, () => prefs.toggleSound())}
+>
+	<SoundIcon size={18} strokeWidth={1.75} aria-hidden="true" />
+</button>

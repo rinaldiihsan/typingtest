@@ -3,19 +3,17 @@
 	import ArrowLeft from "@lucide/svelte/icons/arrow-left";
 	import Trash from "@lucide/svelte/icons/trash";
 	import type { HistoryEntry } from "#lib/storage/storage.ts";
+	import { summarizeHistory } from "#lib/storage/summary.ts";
 
 	let {
 		entries,
 		onclear,
 		onclose,
-	}: {
-		entries: readonly HistoryEntry[];
-		onclear: () => void;
-		onclose: () => void;
-	} = $props();
+	}: { entries: readonly HistoryEntry[]; onclear: () => void; onclose: () => void } = $props();
 
 	const SHOWN = 10;
 	const recent = $derived([...entries].reverse().slice(0, SHOWN));
+	const summary = $derived(summarizeHistory(entries));
 	const dateFormat = new Intl.DateTimeFormat(undefined, {
 		day: "numeric",
 		month: "short",
@@ -24,32 +22,59 @@
 	});
 
 	function modeLabel(entry: HistoryEntry) {
-		return entry.mode.type === "time" ? `${entry.mode.seconds}s` : `${entry.mode.count} words`;
+		return entry.mode.type === "time" ? `${entry.mode.seconds} seconds` : `${entry.mode.count} words`;
+	}
+
+	function languageLabel(entry: HistoryEntry) {
+		return entry.language === "en" ? "English" : "Indonesian";
+	}
+
+	function whole(value: number | null) {
+		return value === null ? "0" : String(Math.round(value));
 	}
 </script>
 
 <section class="history" aria-label="History">
+	<dl class="summary">
+		<div>
+			<dt>best wpm</dt>
+			<dd class="accent">{whole(summary.best)}</dd>
+		</div>
+		<div>
+			<dt>recent average</dt>
+			<dd>{whole(summary.average)}</dd>
+		</div>
+		<div>
+			<dt>accuracy</dt>
+			<dd>{summary.accuracy === null ? "0" : summary.accuracy.toFixed(1)}%</dd>
+		</div>
+		<div>
+			<dt>tests taken</dt>
+			<dd>{summary.count}</dd>
+		</div>
+	</dl>
+
 	{#if recent.length === 0}
-		<p class="empty">no results yet</p>
+		<p class="empty">Finish a test and your results will show up here.</p>
 	{:else}
 		<table>
 			<thead>
 				<tr>
-					<th>date</th>
-					<th>lang</th>
-					<th>mode</th>
-					<th>wpm</th>
-					<th>acc</th>
+					<th scope="col">Date</th>
+					<th scope="col">Language</th>
+					<th scope="col">Test</th>
+					<th scope="col" class="num">WPM</th>
+					<th scope="col" class="num">Accuracy</th>
 				</tr>
 			</thead>
 			<tbody>
 				{#each recent as entry (entry.at)}
 					<tr>
 						<td>{dateFormat.format(entry.at)}</td>
-						<td>{entry.language}</td>
+						<td>{languageLabel(entry)}</td>
 						<td>{modeLabel(entry)}</td>
-						<td class="wpm">{Math.round(entry.wpm)}</td>
-						<td>{entry.accuracy.toFixed(1)}%</td>
+						<td class="num wpm">{Math.round(entry.wpm)}</td>
+						<td class="num">{entry.accuracy.toFixed(1)}%</td>
 					</tr>
 				{/each}
 			</tbody>
@@ -57,11 +82,15 @@
 	{/if}
 
 	<div class="actions">
-		<button type="button" onclick={onclose}><ArrowLeft size={16} aria-hidden="true" />Back (Esc)</button>
+		<button type="button" class="btn" onclick={onclose}>
+			<ArrowLeft size={16} strokeWidth={2} aria-hidden="true" />
+			Back to test
+		</button>
 		{#if recent.length > 0}
-			<button type="button" class="ghost" onclick={onclear}
-				><Trash size={16} aria-hidden="true" />Clear history</button
-			>
+			<button type="button" class="btn quiet" onclick={onclear}>
+				<Trash size={16} strokeWidth={1.75} aria-hidden="true" />
+				Clear history
+			</button>
 		{/if}
 	</div>
 </section>
@@ -70,95 +99,85 @@
 	.history {
 		display: flex;
 		flex-direction: column;
-		gap: 1.5rem;
-		align-items: flex-start;
-		min-height: calc(var(--line) * 3);
+		gap: 2rem;
 		animation: rise 320ms ease-out both;
+	}
+
+	.summary {
+		display: grid;
+		grid-template-columns: repeat(auto-fit, minmax(8rem, 1fr));
+		gap: 1.25rem 2rem;
+		margin: 0;
+	}
+
+	dt {
+		color: var(--muted);
+		font-size: 0.9rem;
+	}
+
+	dd {
+		margin: 0;
+		font-family: var(--font-mono);
+		font-variant-numeric: tabular-nums;
+		font-size: 2rem;
+		line-height: 1.2;
+		letter-spacing: -0.02em;
+	}
+
+	dd.accent {
+		color: var(--accent);
 	}
 
 	.empty {
 		margin: 0;
+		padding-top: 1.5rem;
+		border-top: 1px solid var(--rule);
 		color: var(--muted);
 	}
 
 	table {
+		width: 100%;
 		border-collapse: collapse;
-		font-family: var(--font-mono);
 		font-variant-numeric: tabular-nums;
-		font-size: 0.95rem;
 	}
 
 	th {
 		color: var(--muted);
-		font-size: 0.8rem;
+		font-size: 0.9rem;
 		font-weight: 400;
-		letter-spacing: 0.06em;
 		text-align: left;
-		text-transform: uppercase;
 	}
 
 	th,
 	td {
-		padding: 0.3rem 1.5rem 0.3rem 0;
+		padding: 0.6rem 1rem 0.6rem 0;
+		border-bottom: 1px solid var(--rule);
+	}
+
+	td {
+		font-size: 0.95rem;
+	}
+
+	.num {
+		text-align: right;
+		font-family: var(--font-mono);
+		padding-right: 0;
 	}
 
 	.wpm {
 		color: var(--accent);
 	}
 
-	tbody tr {
-		animation: rise 300ms ease-out both;
-	}
-
-	tbody tr:nth-child(2) {
-		animation-delay: 30ms;
-	}
-
-	tbody tr:nth-child(3) {
-		animation-delay: 60ms;
-	}
-
-	tbody tr:nth-child(n + 4) {
-		animation-delay: 90ms;
-	}
-
 	.actions {
 		display: flex;
-		gap: 0.5rem;
+		flex-wrap: wrap;
+		gap: 0.75rem;
 	}
 
-	button {
-		font: inherit;
-		font-weight: 600;
-		color: var(--bg);
-		background: var(--accent);
-		border: 0;
-		border-radius: 8px;
-		padding: 0.5rem 1rem;
-		cursor: pointer;
-		display: inline-flex;
-		align-items: center;
-		gap: 0.45rem;
-		transition:
-			filter 120ms ease-out,
-			transform 80ms ease-out;
-	}
-
-	button:active {
-		transform: scale(0.96);
-	}
-
-	button.ghost {
-		color: var(--muted);
-		background: var(--surface);
-	}
-
-	button:hover {
-		filter: brightness(1.08);
-	}
-
-	button:focus-visible {
-		outline: 2px solid var(--fg);
-		outline-offset: 2px;
+	@media (max-width: 720px) {
+		th:nth-child(2),
+		td:nth-child(2) {
+			display: none;
+		}
 	}
 </style>

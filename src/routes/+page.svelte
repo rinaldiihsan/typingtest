@@ -74,27 +74,30 @@
 <svelte:window {onkeydown} {onkeyup} onblur={() => keyboard?.releaseAll()} />
 
 <main>
-	<header>
-		<div class="top">
-			<h1><Keyboard size={18} aria-hidden="true" />typing test</h1>
-			<div class="tools">
-				<PrefsBar {prefs} />
-				<button
-					type="button"
-					class="link"
-					aria-pressed={showHistory}
-					onclick={(e) => {
-						showHistory = !showHistory;
-						e.currentTarget.blur();
-					}}
-				>
-					<RotateCcwClock size={16} aria-hidden="true" />
-					history
-				</button>
-			</div>
+	<header class="bar">
+		<h1 class="brand">
+			<Keyboard size={20} strokeWidth={1.75} aria-hidden="true" />
+			typing test
+		</h1>
+		<div class="tools">
+			<PrefsBar {prefs} />
+			<button
+				type="button"
+				class="icon-btn"
+				aria-pressed={showHistory}
+				title="History"
+				aria-label="History"
+				onclick={(e) => {
+					showHistory = !showHistory;
+					e.currentTarget.blur();
+				}}
+			>
+				<RotateCcwClock size={18} strokeWidth={1.75} aria-hidden="true" />
+			</button>
 		</div>
-		<Controls {test} />
 	</header>
+
+	<Controls {test} />
 
 	<section class="stage" aria-label="Typing area">
 		{#if showHistory}
@@ -104,116 +107,90 @@
 				onclose={() => (showHistory = false)}
 			/>
 		{:else if snap.status === "finished"}
-			<Results snapshot={snap} run={test.lastRun} onrestart={() => test.restart()} />
+			<Results
+				snapshot={snap}
+				run={test.lastRun}
+				samples={test.samples}
+				language={test.language}
+				onrestart={() => test.restart()}
+			/>
 		{:else}
 			<div class="hud" aria-live="off">
 				<span class="progress">{progress}</span>
 				<span class="live">{liveWpm} wpm</span>
 			</div>
 			<WordsView snapshot={snap} />
+			<p class="hint" class:visible={snap.status === "idle"}>Start typing to begin</p>
 		{/if}
 	</section>
 
-	<Keyboard3D bind:this={keyboard} />
+	<div class="deck">
+		<Keyboard3D bind:this={keyboard} />
+	</div>
 
 	<footer>
-		<kbd>Esc</kbd> restart / back
+		<span class="key">Esc</span>
+		{showHistory ? "to go back" : "to restart"}
 	</footer>
 </main>
 
 <style>
 	main {
-		animation: rise 400ms ease-out both;
 		display: flex;
 		flex-direction: column;
-		gap: 3rem;
-		max-width: 62rem;
+		gap: 2rem;
+		max-width: 64rem;
 		min-height: 100%;
 		margin-inline: auto;
-		padding: 2rem 1.5rem 2.5rem;
+		padding: 1.5rem 1.5rem 2rem;
 	}
 
-	header {
+	.bar {
 		display: flex;
-		flex-direction: column;
-		gap: 1.25rem;
-	}
-
-	.top {
-		display: flex;
-		align-items: baseline;
+		align-items: center;
 		justify-content: space-between;
+	}
+
+	.brand {
+		display: inline-flex;
+		align-items: center;
+		gap: 0.6rem;
+		margin: 0;
+		font-size: 1.15rem;
+		font-weight: 600;
+		letter-spacing: -0.01em;
+	}
+
+	.brand :global(svg) {
+		color: var(--accent);
 	}
 
 	.tools {
 		display: flex;
-		flex-wrap: wrap;
-		justify-content: flex-end;
-		gap: 0.25rem;
-	}
-
-	.link {
-		display: inline-flex;
-		align-items: center;
-		gap: 0.4rem;
-		transition:
-			color 120ms ease-out,
-			transform 80ms ease-out;
-		font: inherit;
-		font-size: 0.9rem;
-		color: var(--muted);
-		background: transparent;
-		border: 0;
-		border-radius: 6px;
-		padding: 0.25rem 0.5rem;
-		cursor: pointer;
-	}
-
-	.link:active {
-		transform: scale(0.95);
-	}
-
-	.link:hover,
-	.link[aria-pressed="true"] {
-		color: var(--accent);
-	}
-
-	.link:focus-visible {
-		outline: 2px solid var(--accent);
-		outline-offset: 2px;
-	}
-
-	h1 {
-		display: inline-flex;
-		align-items: center;
-		gap: 0.5rem;
-		margin: 0;
-		font-family: var(--font-mono);
-		font-size: 1.1rem;
-		font-weight: 500;
-		letter-spacing: 0.02em;
-		color: var(--muted);
+		gap: 0.15rem;
 	}
 
 	.stage {
 		display: flex;
 		flex-direction: column;
-		gap: 1rem;
-		margin-block: auto;
+		justify-content: center;
+		gap: 0.75rem;
+		min-height: 25rem;
 	}
 
 	.hud {
 		display: flex;
-		gap: 1.5rem;
+		gap: 1.25rem;
 		align-items: baseline;
 		font-family: var(--font-mono);
 		font-variant-numeric: tabular-nums;
-		min-height: 2rem;
+		min-height: 2.75rem;
 	}
 
 	.progress {
 		color: var(--accent);
-		font-size: 1.5rem;
+		font-size: 2.25rem;
+		line-height: 1.2;
 	}
 
 	.live {
@@ -221,15 +198,38 @@
 		font-size: 1rem;
 	}
 
-	footer {
+	.hint {
+		margin: 0;
 		color: var(--muted);
-		font-size: 0.85rem;
+		font-size: 0.95rem;
+		opacity: 0;
+		transition: opacity 200ms ease-out;
 	}
 
-	kbd {
+	.hint.visible {
+		opacity: 1;
+	}
+
+	/* A soft glow in the accent color sits behind the keyboard. */
+	.deck {
+		margin-inline: -1.5rem;
+		padding: 1rem 1.5rem;
+		background: radial-gradient(
+			ellipse 60% 55% at 50% 55%,
+			color-mix(in srgb, var(--accent) 16%, transparent),
+			transparent 70%
+		);
+	}
+
+	footer {
+		color: var(--muted);
+		font-size: 0.9rem;
+	}
+
+	.key {
+		margin-right: 0.25rem;
+		color: var(--fg);
 		font-family: var(--font-mono);
-		background: var(--surface);
-		border-radius: 4px;
-		padding: 0.1rem 0.4rem;
+		font-weight: 600;
 	}
 </style>

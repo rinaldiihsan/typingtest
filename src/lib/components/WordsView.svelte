@@ -72,7 +72,8 @@
 		overflow: hidden;
 		font-family: var(--font-mono);
 		font-size: 1.6rem;
-		animation: rise 320ms ease-out both;
+		/* The third line fades out so the eye stays on the active one. */
+		mask-image: linear-gradient(to bottom, #000 66%, rgb(0 0 0 / 0.3));
 	}
 
 	.track {

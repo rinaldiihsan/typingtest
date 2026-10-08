@@ -233,11 +233,12 @@ export async function createKeyboardScene(
 		accentColor = token(style, "--accent", "#8fa8ff");
 
 		const isDark = bg.getHSL({ h: 0, s: 0, l: 0 }).l < 0.5;
+		// In dark mode the keys pick up a little of the accent so they do not read as flat grey.
 		alphaColor = isDark
-			? bg.clone().lerp(fg, 0.16)
+			? bg.clone().lerp(fg, 0.16).lerp(accentColor, 0.1)
 			: bg.clone().lerp(new Color(1, 1, 1), 0.7);
 		modifierColor = isDark
-			? bg.clone().lerp(fg, 0.08)
+			? bg.clone().lerp(fg, 0.08).lerp(accentColor, 0.06)
 			: bg.clone().lerp(fg, 0.05);
 
 		caseMaterial.color.copy(surface);

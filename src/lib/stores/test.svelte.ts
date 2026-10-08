@@ -2,6 +2,7 @@
 import {
 	generateWords,
 	type Mode,
+	type Sample,
 	type Snapshot,
 	TypingSession,
 	wordCountFor,
@@ -47,10 +48,13 @@ export class TypingTest {
 	snapshot: Snapshot;
 	history: HistoryEntry[];
 	lastRun: RunSummary | null;
+	/** Speed sampled about once per second during the current test. */
+	samples: Sample[];
 
 	#storage: AppStorage;
 	#session: TypingSession;
 	#timer: ReturnType<typeof setInterval> | undefined;
+	#lastSampleAt = 0;
 
 	constructor(storage: AppStorage = createStorage(browserBackend())) {
 		this.#storage = storage;
@@ -60,6 +64,7 @@ export class TypingTest {
 		this.mode = $state.raw(settings.mode);
 		this.history = $state.raw(storage.loadHistory());
 		this.lastRun = $state.raw(null);
+		this.samples = $state.raw([]);
 
 		this.#session = createSession(settings.language, settings.mode);
 		this.snapshot = $state.raw(this.#session.snapshot());
@@ -78,6 +83,8 @@ export class TypingTest {
 	restart() {
 		this.#stopTimer();
 		this.lastRun = null;
+		this.samples = [];
+		this.#lastSampleAt = 0;
 		this.#session = createSession(this.language, this.mode);
 		this.snapshot = this.#session.snapshot();
 	}
@@ -112,6 +119,7 @@ export class TypingTest {
 	#sync() {
 		const wasFinished = this.snapshot.status === "finished";
 		this.snapshot = this.#session.snapshot();
+		this.#sample();
 
 		if (this.snapshot.status === "running") {
 			this.#startTimer();
@@ -120,6 +128,23 @@ export class TypingTest {
 
 		this.#stopTimer();
 		if (this.snapshot.status === "finished" && !wasFinished) this.#record();
+	}
+
+	#sample() {
+		const { status, stats } = this.snapshot;
+		if (status === "idle") return;
+
+		const t = stats.elapsedMs / 1000;
+		const finished = status === "finished";
+		// About one point per second, plus a closing point when the test ends.
+		const gap = t - this.#lastSampleAt;
+		if (t <= 0 || gap < (finished ? 0.25 : 1)) return;
+
+		this.#lastSampleAt = t;
+		this.samples = [
+			...this.samples,
+			{ t: round(t, 1), wpm: round(stats.wpm, 1), raw: round(stats.rawWpm, 1) },
+		];
 	}
 
 	#record() {
