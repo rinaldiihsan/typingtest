@@ -204,3 +204,64 @@ body {
     transition-duration: 0.01ms !important;
   }
 }
+
+/* Higher contrast: stronger secondary text, clearer rules and underline. */
+@media (prefers-contrast: more) {
+  :root {
+    --muted: #3d3a5a;
+    --untyped: #55527a;
+    --rule: color-mix(in srgb, var(--fg) 45%, transparent);
+  }
+
+  .opt[aria-pressed='true']::after {
+    height: 3px;
+  }
+}
+
+@media (prefers-contrast: more) and (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    --muted: #c9c6e3;
+    --untyped: #a8a5c6;
+  }
+}
+
+:root[data-theme='dark'] {
+  @media (prefers-contrast: more) {
+    --muted: #c9c6e3;
+    --untyped: #a8a5c6;
+  }
+}
+
+/* Windows high contrast and similar: let the system palette decide, keep state visible. */
+@media (forced-colors: active) {
+  .opt[aria-pressed='true'],
+  .icon-btn[aria-pressed='true'] {
+    color: Highlight;
+    text-decoration: underline;
+    text-underline-offset: 0.3em;
+    text-decoration-thickness: 2px;
+  }
+
+  .opt::after {
+    display: none;
+  }
+
+  .opt:disabled {
+    color: GrayText;
+  }
+
+  .swatch {
+    forced-color-adjust: none;
+  }
+
+  .swatch[aria-pressed='true'] {
+    outline: 2px solid Highlight;
+    outline-offset: 3px;
+  }
+
+  .opt:focus-visible,
+  .icon-btn:focus-visible,
+  .btn:focus-visible {
+    outline: 2px solid Highlight;
+  }
+}

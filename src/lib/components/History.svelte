@@ -2,6 +2,7 @@
 <script lang="ts">
 	import ArrowLeft from "@lucide/svelte/icons/arrow-left";
 	import Trash from "@lucide/svelte/icons/trash";
+	import { modeLabel } from "#lib/engine/index.ts";
 	import type { HistoryEntry } from "#lib/storage/storage.ts";
 	import { summarizeHistory } from "#lib/storage/summary.ts";
 
@@ -20,10 +21,6 @@
 		hour: "2-digit",
 		minute: "2-digit",
 	});
-
-	function modeLabel(entry: HistoryEntry) {
-		return entry.mode.type === "time" ? `${entry.mode.seconds} seconds` : `${entry.mode.count} words`;
-	}
 
 	function languageLabel(entry: HistoryEntry) {
 		return entry.language === "en" ? "English" : "Indonesian";
@@ -72,7 +69,7 @@
 					<tr>
 						<td>{dateFormat.format(entry.at)}</td>
 						<td>{languageLabel(entry)}</td>
-						<td>{modeLabel(entry)}</td>
+						<td>{modeLabel(entry.mode)}</td>
 						<td class="num wpm">{Math.round(entry.wpm)}</td>
 						<td class="num">{entry.accuracy.toFixed(1)}%</td>
 					</tr>

@@ -1,11 +1,12 @@
 // src/lib/stores/test.svelte.ts
 import {
-	generateWords,
+	buildWords,
 	type Mode,
 	type Sample,
 	type Snapshot,
+	type TestOptions,
 	TypingSession,
-	wordCountFor,
+	type WordSource,
 } from "#lib/engine/index.ts";
 import {
 	type AppStorage,
@@ -18,6 +19,8 @@ import {
 } from "#lib/storage/storage.ts";
 import en from "#lib/words/en.json";
 import id from "#lib/words/id.json";
+import quotesEn from "#lib/words/quotes-en.json";
+import quotesId from "#lib/words/quotes-id.json";
 
 export type { Language };
 
@@ -29,12 +32,21 @@ export interface RunSummary {
 	isNewBest: boolean;
 }
 
-const WORD_LISTS: Record<Language, readonly string[]> = { en, id };
+const SOURCES: Record<Language, WordSource> = {
+	en: { words: en, quotes: quotesEn },
+	id: { words: id, quotes: quotesId },
+};
 const TICK_MS = 100;
 
-function createSession(language: Language, mode: Mode): TypingSession {
-	const words = generateWords(WORD_LISTS[language], wordCountFor(mode));
-	return new TypingSession({ words, mode });
+function createSession(
+	language: Language,
+	mode: Mode,
+	options: TestOptions,
+): TypingSession {
+	return new TypingSession({
+		words: buildWords(SOURCES[language], mode, options),
+		mode,
+	});
 }
 
 function round(value: number, digits = 2): number {
@@ -45,6 +57,7 @@ function round(value: number, digits = 2): number {
 export class TypingTest {
 	language: Language;
 	mode: Mode;
+	options: TestOptions;
 	snapshot: Snapshot;
 	history: HistoryEntry[];
 	lastRun: RunSummary | null;
@@ -62,17 +75,22 @@ export class TypingTest {
 
 		this.language = $state(settings.language);
 		this.mode = $state.raw(settings.mode);
+		this.options = $state.raw(settings.options);
 		this.history = $state.raw(storage.loadHistory());
 		this.lastRun = $state.raw(null);
 		this.samples = $state.raw([]);
 
-		this.#session = createSession(settings.language, settings.mode);
+		this.#session = createSession(
+			settings.language,
+			settings.mode,
+			settings.options,
+		);
 		this.snapshot = $state.raw(this.#session.snapshot());
 	}
 
 	/** Best WPM for the current language and mode. */
 	get best(): number | null {
-		return bestWpm(this.history, this.language, this.mode);
+		return bestWpm(this.history, this.language, this.mode, this.options);
 	}
 
 	press(key: string) {
@@ -85,7 +103,7 @@ export class TypingTest {
 		this.lastRun = null;
 		this.samples = [];
 		this.#lastSampleAt = 0;
-		this.#session = createSession(this.language, this.mode);
+		this.#session = createSession(this.language, this.mode, this.options);
 		this.snapshot = this.#session.snapshot();
 	}
 
@@ -102,6 +120,13 @@ export class TypingTest {
 		this.restart();
 	}
 
+	/** Turns one option on or off and starts a new test. */
+	toggleOption(name: keyof TestOptions) {
+		this.options = { ...this.options, [name]: !this.options[name] };
+		this.#saveSettings();
+		this.restart();
+	}
+
 	clearHistory() {
 		this.history = [];
 		this.lastRun = null;
@@ -113,7 +138,11 @@ export class TypingTest {
 	}
 
 	#saveSettings() {
-		this.#storage.saveSettings({ language: this.language, mode: this.mode });
+		this.#storage.saveSettings({
+			language: this.language,
+			mode: this.mode,
+			options: this.options,
+		});
 	}
 
 	#sync() {
@@ -156,13 +185,19 @@ export class TypingTest {
 			at: Date.now(),
 			language: this.language,
 			mode,
+			options: this.options,
 			wpm: round(stats.wpm),
 			rawWpm: round(stats.rawWpm),
 			accuracy: round(stats.accuracy),
 			elapsedMs: Math.round(stats.elapsedMs),
 		};
 
-		const previousBest = bestWpm(this.history, this.language, mode);
+		const previousBest = bestWpm(
+			this.history,
+			this.language,
+			mode,
+			this.options,
+		);
 		this.lastRun = {
 			entry,
 			previousBest,

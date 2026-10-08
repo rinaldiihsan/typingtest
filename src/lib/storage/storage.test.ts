@@ -1,5 +1,6 @@
 // src/lib/storage/storage.test.ts
 import { describe, expect, it } from "vitest";
+import { DEFAULT_OPTIONS } from "#lib/engine/index.ts";
 import {
 	appendResult,
 	bestWpm,
@@ -29,6 +30,7 @@ function entry(overrides: Partial<HistoryEntry> = {}): HistoryEntry {
 		at: 1,
 		language: "en",
 		mode: { type: "time", seconds: 30 },
+		options: DEFAULT_OPTIONS,
 		wpm: 50,
 		rawWpm: 55,
 		accuracy: 96,
@@ -49,10 +51,12 @@ describe("settings", () => {
 		storage.saveSettings({
 			language: "id",
 			mode: { type: "words", count: 25 },
+			options: { ...DEFAULT_OPTIONS, numbers: true },
 		});
 		expect(storage.loadSettings()).toEqual({
 			language: "id",
 			mode: { type: "words", count: 25 },
+			options: { ...DEFAULT_OPTIONS, numbers: true },
 		});
 	});
 
@@ -73,6 +77,7 @@ describe("settings", () => {
 		expect(createStorage(backend).loadSettings()).toEqual({
 			language: "id",
 			mode: DEFAULT_SETTINGS.mode,
+			options: DEFAULT_OPTIONS,
 		});
 	});
 
@@ -83,7 +88,11 @@ describe("settings", () => {
 
 	it("works without any backend", () => {
 		const storage = createStorage(null);
-		storage.saveSettings({ language: "id", mode: DEFAULT_SETTINGS.mode });
+		storage.saveSettings({
+			language: "id",
+			mode: DEFAULT_SETTINGS.mode,
+			options: DEFAULT_OPTIONS,
+		});
 		expect(storage.loadSettings()).toEqual(DEFAULT_SETTINGS);
 		expect(storage.loadHistory()).toEqual([]);
 	});
@@ -116,8 +125,18 @@ describe("preferences", () => {
 
 	it("round-trips saved preferences", () => {
 		const storage = createStorage(fakeBackend());
-		storage.savePreferences({ theme: "dark", sound: true });
-		expect(storage.loadPreferences()).toEqual({ theme: "dark", sound: true });
+		storage.savePreferences({
+			theme: "dark",
+			sound: true,
+			layout: "tkl",
+			keycaps: "ocean",
+		});
+		expect(storage.loadPreferences()).toEqual({
+			theme: "dark",
+			sound: true,
+			layout: "tkl",
+			keycaps: "ocean",
+		});
 	});
 
 	it("falls back per field when stored values are invalid", () => {
@@ -125,7 +144,7 @@ describe("preferences", () => {
 			"typing-test:preferences": JSON.stringify({ theme: "neon", sound: true }),
 		});
 		expect(createStorage(backend).loadPreferences()).toEqual({
-			theme: "system",
+			...DEFAULT_PREFERENCES,
 			sound: true,
 		});
 	});
@@ -139,7 +158,64 @@ describe("preferences", () => {
 	});
 });
 
+describe("preferences keyboard fields", () => {
+	it("rejects unknown layout and keycap ids per field", () => {
+		const backend = fakeBackend({
+			"typing-test:preferences": JSON.stringify({
+				layout: "100",
+				keycaps: "ocean",
+			}),
+		});
+		const loaded = createStorage(backend).loadPreferences();
+		expect(loaded.layout).toBe("60");
+		expect(loaded.keycaps).toBe("ocean");
+	});
+});
+
+describe("settings options and quote mode", () => {
+	it("reads each option flag on its own", () => {
+		const backend = fakeBackend({
+			"typing-test:settings": JSON.stringify({
+				language: "en",
+				mode: { type: "quote", length: "long" },
+				options: { punctuation: true, numbers: "yes", hard: true },
+			}),
+		});
+		expect(createStorage(backend).loadSettings()).toEqual({
+			language: "en",
+			mode: { type: "quote", length: "long" },
+			options: {
+				punctuation: true,
+				numbers: false,
+				capitals: false,
+				hard: true,
+			},
+		});
+	});
+
+	it("rejects an invalid quote length", () => {
+		const backend = fakeBackend({
+			"typing-test:settings": JSON.stringify({
+				mode: { type: "quote", length: "huge" },
+			}),
+		});
+		expect(createStorage(backend).loadSettings().mode).toEqual(
+			DEFAULT_SETTINGS.mode,
+		);
+	});
+});
+
 describe("history", () => {
+	it("loads results saved before options existed", () => {
+		const legacy = { ...entry(), options: undefined };
+		const backend = fakeBackend({
+			"typing-test:history": JSON.stringify([legacy]),
+		});
+		expect(createStorage(backend).loadHistory()[0].options).toEqual(
+			DEFAULT_OPTIONS,
+		);
+	});
+
 	it("round-trips and drops invalid entries", () => {
 		const backend = fakeBackend({
 			"typing-test:history": JSON.stringify([
@@ -183,6 +259,30 @@ describe("history", () => {
 	});
 });
 
+describe("bestWpm and options", () => {
+	const hard = { ...DEFAULT_OPTIONS, hard: true };
+	const quoteShort = { type: "quote", length: "short" } as const;
+	const time30 = { type: "time", seconds: 30 } as const;
+	const history = [
+		entry({ wpm: 50 }),
+		entry({ wpm: 80, options: hard }),
+		entry({ wpm: 70, mode: quoteShort }),
+		entry({ wpm: 90, mode: quoteShort, options: hard }),
+	];
+
+	it("keeps results with different options apart", () => {
+		expect(bestWpm(history, "en", time30, DEFAULT_OPTIONS)).toBe(50);
+		expect(bestWpm(history, "en", time30, hard)).toBe(80);
+		expect(
+			bestWpm(history, "en", time30, { ...DEFAULT_OPTIONS, numbers: true }),
+		).toBeNull();
+	});
+
+	it("ignores options in quote mode", () => {
+		expect(bestWpm(history, "en", quoteShort, DEFAULT_OPTIONS)).toBe(90);
+	});
+});
+
 describe("bestWpm", () => {
 	const history = [
 		entry({ wpm: 40 }),
@@ -207,5 +307,6 @@ describe("modeKey", () => {
 	it("tells modes apart", () => {
 		expect(modeKey({ type: "time", seconds: 30 })).toBe("time:30");
 		expect(modeKey({ type: "words", count: 30 })).toBe("words:30");
+		expect(modeKey({ type: "quote", length: "long" })).toBe("quote:long");
 	});
 });

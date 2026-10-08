@@ -1,5 +1,6 @@
 // src/lib/storage/summary.test.ts
 import { describe, expect, it } from "vitest";
+import { DEFAULT_OPTIONS } from "#lib/engine/index.ts";
 import type { HistoryEntry } from "./storage.ts";
 import { SUMMARY_WINDOW, summarizeHistory } from "./summary.ts";
 
@@ -8,6 +9,7 @@ function entry(wpm: number, accuracy = 95): HistoryEntry {
 		at: wpm,
 		language: "en",
 		mode: { type: "time", seconds: 30 },
+		options: DEFAULT_OPTIONS,
 		wpm,
 		rawWpm: wpm,
 		accuracy,

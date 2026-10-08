@@ -3,8 +3,11 @@ import type { Mode } from "./types";
 
 export const TIME_MODE_WORD_BUFFER = 250;
 
+/** How many random words a mode needs. Quote mode takes its length from the quote itself. */
 export function wordCountFor(mode: Mode): number {
-	return mode.type === "words" ? mode.count : TIME_MODE_WORD_BUFFER;
+	if (mode.type === "words") return mode.count;
+	if (mode.type === "quote") return 0;
+	return TIME_MODE_WORD_BUFFER;
 }
 
 /** Picks random words; never repeats the same word twice in a row. */

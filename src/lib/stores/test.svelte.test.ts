@@ -1,5 +1,6 @@
 // src/lib/stores/test.svelte.test.ts
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { DEFAULT_OPTIONS } from "#lib/engine/index.ts";
 import { createStorage, type StorageBackend } from "#lib/storage/storage.ts";
 import en from "#lib/words/en.json";
 import id from "#lib/words/id.json";
@@ -126,12 +127,14 @@ describe("TypingTest store", () => {
 			storage.saveSettings({
 				language: "en",
 				mode: { type: "words", count: 10 },
+				options: DEFAULT_OPTIONS,
 			});
 			storage.saveHistory([
 				{
 					at: 1,
 					language: "en",
 					mode: { type: "words", count: 10 },
+					options: DEFAULT_OPTIONS,
 					wpm: 1,
 					rawWpm: 1,
 					accuracy: 100,
@@ -193,6 +196,64 @@ describe("TypingTest store", () => {
 			finishWordsTest(test);
 			test.restart();
 			expect(test.samples).toEqual([]);
+			test.destroy();
+		});
+	});
+
+	describe("options and quote mode", () => {
+		it("saves and restores options", () => {
+			const backend = memoryBackend();
+			const first = new TypingTest(createStorage(backend));
+			first.toggleOption("numbers");
+			first.toggleOption("hard");
+			first.destroy();
+
+			const second = new TypingTest(createStorage(backend));
+			expect(second.options).toEqual({
+				...DEFAULT_OPTIONS,
+				numbers: true,
+				hard: true,
+			});
+			second.destroy();
+		});
+
+		it("restarts when an option changes", () => {
+			const test = new TypingTest(createStorage(memoryBackend()));
+			test.press(test.snapshot.words[0][0]);
+			test.toggleOption("capitals");
+			expect(test.snapshot.status).toBe("idle");
+			test.destroy();
+		});
+
+		it("uses only long words in hard mode", () => {
+			const test = new TypingTest(createStorage(memoryBackend()));
+			test.toggleOption("hard");
+			expect(test.snapshot.words.every((w) => w.length >= 7)).toBe(true);
+			test.destroy();
+		});
+
+		it("types a whole quote and finishes", () => {
+			const test = new TypingTest(createStorage(memoryBackend()));
+			test.setMode({ type: "quote", length: "short" });
+			expect(test.snapshot.words.length).toBeLessThanOrEqual(14);
+
+			for (const word of test.snapshot.words) {
+				typeText(test, word);
+				test.press(" ");
+				vi.advanceTimersByTime(300);
+			}
+
+			expect(test.snapshot.status).toBe("finished");
+			expect(test.history).toHaveLength(1);
+			expect(test.history[0].mode).toEqual({ type: "quote", length: "short" });
+			test.destroy();
+		});
+
+		it("uses Indonesian quotes in Indonesian", () => {
+			const test = new TypingTest(createStorage(memoryBackend()));
+			test.setLanguage("id");
+			test.setMode({ type: "quote", length: "medium" });
+			expect(test.snapshot.words.length).toBeGreaterThan(14);
 			test.destroy();
 		});
 	});

@@ -7,6 +7,7 @@
 	import Controls from "#lib/components/Controls.svelte";
 	import History from "#lib/components/History.svelte";
 	import Keyboard3D from "#lib/components/Keyboard3D.svelte";
+	import KeyboardOptions from "#lib/components/KeyboardOptions.svelte";
 	import PrefsBar from "#lib/components/PrefsBar.svelte";
 	import Results from "#lib/components/Results.svelte";
 	import WordsView from "#lib/components/WordsView.svelte";
@@ -25,7 +26,7 @@
 		if (mode.type === "time") {
 			return String(Math.max(0, Math.ceil(mode.seconds - elapsedMs / 1000)));
 		}
-		return `${wordIndex}/${mode.count}`;
+		return `${wordIndex}/${snap.words.length}`;
 	});
 
 	const liveWpm = $derived(snap.status === "running" ? Math.round(snap.stats.wpm) : 0);
@@ -125,7 +126,8 @@
 	</section>
 
 	<div class="deck">
-		<Keyboard3D bind:this={keyboard} />
+		<Keyboard3D bind:this={keyboard} layout={prefs.layout} keycaps={prefs.keycaps} />
+		<KeyboardOptions {prefs} />
 	</div>
 
 	<footer>

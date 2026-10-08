@@ -60,7 +60,12 @@ describe("Preferences store", () => {
 
 	it("applies the saved theme on creation", () => {
 		const backend = memoryBackend();
-		createStorage(backend).savePreferences({ theme: "dark", sound: false });
+		createStorage(backend).savePreferences({
+			theme: "dark",
+			sound: false,
+			layout: "60",
+			keycaps: "default",
+		});
 		const target = fakeTarget();
 		new Preferences(createStorage(backend), target);
 		expect(target.attrs.get("data-theme")).toBe("dark");
@@ -88,5 +93,18 @@ describe("Preferences store", () => {
 	it("works without a DOM target", () => {
 		const prefs = new Preferences(createStorage(null), null);
 		expect(() => prefs.cycleTheme()).not.toThrow();
+	});
+
+	it("saves the keyboard layout and keycap scheme", () => {
+		const backend = memoryBackend();
+		const prefs = new Preferences(createStorage(backend), fakeTarget());
+		prefs.setLayout("75");
+		prefs.setKeycaps("sakura");
+
+		expect(prefs.layout).toBe("75");
+		expect(prefs.keycaps).toBe("sakura");
+		const saved = createStorage(backend).loadPreferences();
+		expect(saved.layout).toBe("75");
+		expect(saved.keycaps).toBe("sakura");
 	});
 });

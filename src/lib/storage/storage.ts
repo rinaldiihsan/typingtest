@@ -1,11 +1,18 @@
 // src/lib/storage/storage.ts
-import type { Mode } from "#lib/engine/index.ts";
+import {
+	DEFAULT_OPTIONS,
+	type Mode,
+	type TestOptions,
+} from "#lib/engine/index.ts";
+import { LAYOUT_NAMES, type LayoutName } from "#lib/keyboard3d/layout.ts";
+import { KEYCAP_IDS, type KeycapId } from "#lib/keyboard3d/themes.ts";
 
 export type Language = "en" | "id";
 
 export interface Settings {
 	language: Language;
 	mode: Mode;
+	options: TestOptions;
 }
 
 export type Theme = "system" | "light" | "dark";
@@ -13,6 +20,8 @@ export type Theme = "system" | "light" | "dark";
 export interface Preferences {
 	theme: Theme;
 	sound: boolean;
+	layout: LayoutName;
+	keycaps: KeycapId;
 }
 
 export interface HistoryEntry {
@@ -20,6 +29,7 @@ export interface HistoryEntry {
 	at: number;
 	language: Language;
 	mode: Mode;
+	options: TestOptions;
 	wpm: number;
 	rawWpm: number;
 	accuracy: number;
@@ -36,11 +46,14 @@ export interface StorageBackend {
 export const DEFAULT_SETTINGS: Settings = {
 	language: "en",
 	mode: { type: "time", seconds: 30 },
+	options: DEFAULT_OPTIONS,
 };
 
 export const DEFAULT_PREFERENCES: Preferences = {
 	theme: "system",
 	sound: false,
+	layout: "60",
+	keycaps: "default",
 };
 
 export const HISTORY_LIMIT = 200;
@@ -62,6 +75,20 @@ function isTheme(value: unknown): value is Theme {
 	return value === "system" || value === "light" || value === "dark";
 }
 
+function isLayoutName(value: unknown): value is LayoutName {
+	return (
+		typeof value === "string" &&
+		(LAYOUT_NAMES as readonly string[]).includes(value)
+	);
+}
+
+function isKeycapId(value: unknown): value is KeycapId {
+	return (
+		typeof value === "string" &&
+		(KEYCAP_IDS as readonly string[]).includes(value)
+	);
+}
+
 function isPositiveInt(value: unknown, max: number): value is number {
 	return (
 		typeof value === "number" &&
@@ -75,14 +102,38 @@ function isMode(value: unknown): value is Mode {
 	if (!isRecord(value)) return false;
 	if (value.type === "time") return isPositiveInt(value.seconds, 600);
 	if (value.type === "words") return isPositiveInt(value.count, 1000);
+	if (value.type === "quote") {
+		return (
+			value.length === "short" ||
+			value.length === "medium" ||
+			value.length === "long"
+		);
+	}
 	return false;
+}
+
+/** Reads each flag on its own, so a missing or damaged field becomes false. */
+function parseOptions(value: unknown): TestOptions {
+	if (!isRecord(value)) return { ...DEFAULT_OPTIONS };
+	return {
+		punctuation: value.punctuation === true,
+		numbers: value.numbers === true,
+		capitals: value.capitals === true,
+		hard: value.hard === true,
+	};
 }
 
 function isFiniteNumber(value: unknown): value is number {
 	return typeof value === "number" && Number.isFinite(value);
 }
 
-function isHistoryEntry(value: unknown): value is HistoryEntry {
+/** Checks the stored shape. `options` is optional so results saved before it existed still load. */
+function isStoredEntry(value: unknown): value is Omit<
+	HistoryEntry,
+	"options"
+> & {
+	options?: unknown;
+} {
 	return (
 		isRecord(value) &&
 		isFiniteNumber(value.at) &&
@@ -95,24 +146,46 @@ function isHistoryEntry(value: unknown): value is HistoryEntry {
 	);
 }
 
-/** Stable key for grouping results, e.g. "time:30" or "words:25". */
+function toEntry(
+	stored: Omit<HistoryEntry, "options"> & { options?: unknown },
+): HistoryEntry {
+	return { ...stored, options: parseOptions(stored.options) };
+}
+
+/** Stable key for grouping results, e.g. "time:30", "words:25" or "quote:short". */
 export function modeKey(mode: Mode): string {
-	return mode.type === "time" ? `time:${mode.seconds}` : `words:${mode.count}`;
+	if (mode.type === "time") return `time:${mode.seconds}`;
+	if (mode.type === "words") return `words:${mode.count}`;
+	return `quote:${mode.length}`;
+}
+
+export function sameOptions(a: TestOptions, b: TestOptions): boolean {
+	return (
+		a.punctuation === b.punctuation &&
+		a.numbers === b.numbers &&
+		a.capitals === b.capitals &&
+		a.hard === b.hard
+	);
 }
 
 export function sameMode(a: Mode, b: Mode): boolean {
 	return modeKey(a) === modeKey(b);
 }
 
-/** Best WPM for a language and mode, or null when nothing was recorded yet. */
+/**
+ * Best WPM for a language, mode and set of options, or null when nothing was recorded yet.
+ * Options are ignored in quote mode because quotes do not use them.
+ */
 export function bestWpm(
 	history: readonly HistoryEntry[],
 	language: Language,
 	mode: Mode,
+	options: TestOptions = DEFAULT_OPTIONS,
 ): number | null {
 	let best: number | null = null;
 	for (const entry of history) {
 		if (entry.language !== language || !sameMode(entry.mode, mode)) continue;
+		if (mode.type !== "quote" && !sameOptions(entry.options, options)) continue;
 		if (best === null || entry.wpm > best) best = entry.wpm;
 	}
 	return best;
@@ -179,6 +252,7 @@ export function createStorage(backend: StorageBackend | null): AppStorage {
 					? raw.language
 					: DEFAULT_SETTINGS.language,
 				mode: isMode(raw.mode) ? raw.mode : DEFAULT_SETTINGS.mode,
+				options: parseOptions(raw.options),
 			};
 		},
 		saveSettings(settings) {
@@ -193,6 +267,12 @@ export function createStorage(backend: StorageBackend | null): AppStorage {
 					typeof raw.sound === "boolean"
 						? raw.sound
 						: DEFAULT_PREFERENCES.sound,
+				layout: isLayoutName(raw.layout)
+					? raw.layout
+					: DEFAULT_PREFERENCES.layout,
+				keycaps: isKeycapId(raw.keycaps)
+					? raw.keycaps
+					: DEFAULT_PREFERENCES.keycaps,
 			};
 		},
 		savePreferences(preferences) {
@@ -201,7 +281,7 @@ export function createStorage(backend: StorageBackend | null): AppStorage {
 		loadHistory() {
 			const raw = readJson(backend, HISTORY_KEY);
 			if (!Array.isArray(raw)) return [];
-			return raw.filter(isHistoryEntry).slice(-HISTORY_LIMIT);
+			return raw.filter(isStoredEntry).map(toEntry).slice(-HISTORY_LIMIT);
 		},
 		saveHistory(history) {
 			writeJson(backend, HISTORY_KEY, history);

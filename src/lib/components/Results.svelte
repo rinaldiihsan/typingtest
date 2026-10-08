@@ -2,7 +2,7 @@
 <script lang="ts">
 	import RotateCcw from "@lucide/svelte/icons/rotate-ccw";
 	import Trophy from "@lucide/svelte/icons/trophy";
-	import type { Sample, Snapshot } from "#lib/engine/index.ts";
+	import { modeLabel, type Sample, type Snapshot } from "#lib/engine/index.ts";
 	import type { Language, RunSummary } from "#lib/stores/test.svelte.ts";
 	import WpmChart from "./WpmChart.svelte";
 
@@ -24,11 +24,7 @@
 
 	const stats = $derived(snapshot.stats);
 	const seconds = $derived((Math.round(stats.elapsedMs / 100) / 10).toFixed(1));
-	const testLabel = $derived(
-		snapshot.mode.type === "time"
-			? `${LANGUAGE_NAMES[language]}, ${snapshot.mode.seconds} seconds`
-			: `${LANGUAGE_NAMES[language]}, ${snapshot.mode.count} words`,
-	);
+	const testLabel = $derived(`${LANGUAGE_NAMES[language]}, ${modeLabel(snapshot.mode)}`);
 </script>
 
 <section class="results" aria-label="Results">

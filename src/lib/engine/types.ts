@@ -1,7 +1,19 @@
 // src/lib/engine/types.ts
+export type QuoteLength = "short" | "medium" | "long";
+
 export type Mode =
 	| { type: "time"; seconds: number }
-	| { type: "words"; count: number };
+	| { type: "words"; count: number }
+	| { type: "quote"; length: QuoteLength };
+
+/** Extra rules that change which words are generated. Ignored in quote mode. */
+export interface TestOptions {
+	punctuation: boolean;
+	numbers: boolean;
+	capitals: boolean;
+	/** Only long words. */
+	hard: boolean;
+}
 
 export type Status = "idle" | "running" | "finished";
 

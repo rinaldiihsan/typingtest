@@ -17,9 +17,22 @@ import {
 import { RoundedBoxGeometry } from "three/addons/geometries/RoundedBoxGeometry.js";
 import { KeyAnimator } from "./animation.ts";
 import { boxCorners, fitCameraToPoints } from "./framing.ts";
-import { LAYOUT_60, type PlacedKey, placeKeys } from "./layout.ts";
+import {
+	LAYOUTS,
+	type LayoutName,
+	type PlacedKey,
+	placeKeys,
+} from "./layout.ts";
+import { KEYCAP_SCHEMES, type KeycapId } from "./themes.ts";
+
+export interface SceneOptions {
+	layout: LayoutName;
+	keycaps: KeycapId;
+}
 
 export interface KeyboardScene {
+	setLayout(layout: LayoutName): void;
+	setKeycaps(keycaps: KeycapId): void;
 	press(code: string): void;
 	release(code: string): void;
 	releaseAll(): void;
@@ -43,8 +56,7 @@ const PRESS_TINT = 0.6;
 const AMBIENT_INTENSITY = 1.4;
 const SUN_INTENSITY = 2.2;
 
-const ATLAS_COLS = 8;
-const ATLAS_ROWS = 8;
+const ATLAS_COLS = 10;
 const ATLAS_CELL = 128;
 const LEGEND_SIZE = 0.8;
 
@@ -77,10 +89,10 @@ async function loadMonoFont(): Promise<void> {
 	}
 }
 
-function drawLegendAtlas(labels: string[]): CanvasTexture {
+function drawLegendAtlas(labels: string[], rows: number): CanvasTexture {
 	const canvas = document.createElement("canvas");
 	canvas.width = ATLAS_COLS * ATLAS_CELL;
-	canvas.height = ATLAS_ROWS * ATLAS_CELL;
+	canvas.height = rows * ATLAS_CELL;
 	const ctx = canvas.getContext("2d");
 	if (!ctx) throw new Error("2D canvas is not available");
 
@@ -108,14 +120,14 @@ function drawLegendAtlas(labels: string[]): CanvasTexture {
 	return texture;
 }
 
-function legendGeometry(index: number): PlaneGeometry {
+function legendGeometry(index: number, rows: number): PlaneGeometry {
 	const geometry = new PlaneGeometry(LEGEND_SIZE, LEGEND_SIZE);
 	const col = index % ATLAS_COLS;
 	const row = Math.floor(index / ATLAS_COLS);
 	const u0 = col / ATLAS_COLS;
 	const u1 = (col + 1) / ATLAS_COLS;
-	const v1 = 1 - row / ATLAS_ROWS;
-	const v0 = 1 - (row + 1) / ATLAS_ROWS;
+	const v1 = 1 - row / rows;
+	const v0 = 1 - (row + 1) / rows;
 	const uv = geometry.attributes.uv;
 	uv.setXY(0, u0, v1);
 	uv.setXY(1, u1, v1);
@@ -127,13 +139,15 @@ function legendGeometry(index: number): PlaneGeometry {
 
 export async function createKeyboardScene(
 	canvas: HTMLCanvasElement,
+	options: SceneOptions,
 ): Promise<KeyboardScene> {
 	const renderer = new WebGLRenderer({ canvas, antialias: true, alpha: true });
 	renderer.setClearColor(0x000000, 0);
 
 	await loadMonoFont();
 
-	const { keys, width: boardWidth, depth: boardDepth } = placeKeys(LAYOUT_60);
+	let layoutName = options.layout;
+	let keycapId = options.keycaps;
 	const animator = new KeyAnimator();
 
 	const scene = new Scene();
@@ -148,101 +162,152 @@ export async function createKeyboardScene(
 	board.rotation.x = BOARD_TILT;
 	scene.add(board);
 
-	const disposables: { dispose(): void }[] = [];
+	// Everything that depends on the layout lives here and is rebuilt on switch.
+	let content: Group | undefined;
+	let disposables: { dispose(): void }[] = [];
+	let visuals: KeyVisual[] = [];
+	let visualByCode = new Map<string, KeyVisual>();
+	let caseMaterial = new MeshStandardMaterial();
+	let legendMaterial = new MeshBasicMaterial();
+	let frameCorners: ReturnType<typeof boxCorners> = [];
 
-	const caseGeometry = new RoundedBoxGeometry(
-		boardWidth + CASE_MARGIN * 2,
-		CASE_HEIGHT,
-		boardDepth + CASE_MARGIN * 2,
-		3,
-		0.25,
-	);
-	const caseMaterial = new MeshStandardMaterial({ roughness: 0.6 });
-	const caseMesh = new Mesh(caseGeometry, caseMaterial);
-	caseMesh.position.y = -CASE_HEIGHT / 2;
-	board.add(caseMesh);
-	disposables.push(caseGeometry, caseMaterial);
+	function clearLayout(): void {
+		if (content) board.remove(content);
+		for (const item of disposables) item.dispose();
+		disposables = [];
+		visuals = [];
+		visualByCode = new Map();
+		content = undefined;
+	}
 
-	const labels = keys.map((k) => k.label);
-	const atlas = drawLegendAtlas(labels);
-	const legendMaterial = new MeshBasicMaterial({
-		map: atlas,
-		transparent: true,
-		depthWrite: false,
-		polygonOffset: true,
-		polygonOffsetFactor: -1,
-	});
-	disposables.push(atlas, legendMaterial);
-
-	const capGeometries = new Map<number, RoundedBoxGeometry>();
-	const visuals: KeyVisual[] = [];
-	const visualByCode = new Map<string, KeyVisual>();
-
-	keys.forEach((def, index) => {
-		let geometry = capGeometries.get(def.width);
-		if (!geometry) {
-			geometry = new RoundedBoxGeometry(
-				def.width - KEY_GAP,
-				KEY_HEIGHT,
-				KEY_DEPTH,
-				3,
-				KEY_RADIUS,
-			);
-			capGeometries.set(def.width, geometry);
-			disposables.push(geometry);
-		}
-
-		const material = new MeshStandardMaterial({ roughness: 0.5 });
-		disposables.push(material);
-
+	function buildLayout(): void {
+		clearLayout();
+		const {
+			keys,
+			width: boardWidth,
+			depth: boardDepth,
+		} = placeKeys(LAYOUTS[layoutName].rows);
 		const group = new Group();
-		group.position.set(def.x, KEY_REST_Y, def.z);
-		group.add(new Mesh(geometry, material));
-
-		if (def.label) {
-			const plane = legendGeometry(index);
-			disposables.push(plane);
-			const legend = new Mesh(plane, legendMaterial);
-			legend.rotation.x = -Math.PI / 2;
-			legend.position.y = KEY_HEIGHT / 2 + 0.004;
-			group.add(legend);
-		}
-
+		content = group;
 		board.add(group);
 
-		const visual: KeyVisual = {
-			def,
-			group,
-			material,
-			isModifier: def.label.length > 1,
-			lastDepth: -1,
-		};
-		visuals.push(visual);
-		visualByCode.set(def.code, visual);
-	});
+		const caseGeometry = new RoundedBoxGeometry(
+			boardWidth + CASE_MARGIN * 2,
+			CASE_HEIGHT,
+			boardDepth + CASE_MARGIN * 2,
+			3,
+			0.25,
+		);
+		caseMaterial = new MeshStandardMaterial({ roughness: 0.6 });
+		const caseMesh = new Mesh(caseGeometry, caseMaterial);
+		caseMesh.position.y = -CASE_HEIGHT / 2;
+		group.add(caseMesh);
+		disposables.push(caseGeometry, caseMaterial);
+
+		const rows = Math.ceil(keys.length / ATLAS_COLS);
+		const atlas = drawLegendAtlas(
+			keys.map((k) => k.label),
+			rows,
+		);
+		legendMaterial = new MeshBasicMaterial({
+			map: atlas,
+			transparent: true,
+			depthWrite: false,
+			polygonOffset: true,
+			polygonOffsetFactor: -1,
+		});
+		disposables.push(atlas, legendMaterial);
+
+		const capGeometries = new Map<number, RoundedBoxGeometry>();
+
+		keys.forEach((def, index) => {
+			let geometry = capGeometries.get(def.width);
+			if (!geometry) {
+				geometry = new RoundedBoxGeometry(
+					def.width - KEY_GAP,
+					KEY_HEIGHT,
+					KEY_DEPTH,
+					3,
+					KEY_RADIUS,
+				);
+				capGeometries.set(def.width, geometry);
+				disposables.push(geometry);
+			}
+
+			const material = new MeshStandardMaterial({ roughness: 0.5 });
+			disposables.push(material);
+
+			const cap = new Group();
+			cap.position.set(def.x, KEY_REST_Y, def.z);
+			cap.add(new Mesh(geometry, material));
+
+			if (def.label) {
+				const plane = legendGeometry(index, rows);
+				disposables.push(plane);
+				const legend = new Mesh(plane, legendMaterial);
+				legend.rotation.x = -Math.PI / 2;
+				legend.position.y = KEY_HEIGHT / 2 + 0.004;
+				cap.add(legend);
+			}
+
+			group.add(cap);
+
+			const visual: KeyVisual = {
+				def,
+				group: cap,
+				material,
+				isModifier: def.label.length > 1,
+				lastDepth: -1,
+			};
+			visuals.push(visual);
+			visualByCode.set(def.code, visual);
+		});
+
+		frameCorners = boxCorners(
+			boardWidth + CASE_MARGIN * 2,
+			boardDepth + CASE_MARGIN * 2,
+			-CASE_HEIGHT,
+			KEY_REST_Y + KEY_HEIGHT / 2,
+			BOARD_TILT,
+		);
+	}
 
 	let alphaColor = new Color();
 	let modifierColor = new Color();
 	let accentColor = new Color();
+	let pressColor = new Color();
 
 	function applyPalette(): void {
 		const style = getComputedStyle(document.documentElement);
-		const bg = token(style, "--bg", "#14181d");
-		const fg = token(style, "--fg", "#dfe4ea");
-		const surface = token(style, "--surface", "#1f252c");
-		accentColor = token(style, "--accent", "#8fa8ff");
+		const scheme = KEYCAP_SCHEMES[keycapId].colors;
 
-		const isDark = bg.getHSL({ h: 0, s: 0, l: 0 }).l < 0.5;
-		// In dark mode the keys pick up a little of the accent so they do not read as flat grey.
-		alphaColor = isDark
-			? bg.clone().lerp(fg, 0.16).lerp(accentColor, 0.1)
-			: bg.clone().lerp(new Color(1, 1, 1), 0.7);
-		modifierColor = isDark
-			? bg.clone().lerp(fg, 0.08).lerp(accentColor, 0.06)
-			: bg.clone().lerp(fg, 0.05);
+		if (scheme) {
+			alphaColor = new Color(scheme.alpha);
+			modifierColor = new Color(scheme.modifier);
+			pressColor = new Color(scheme.press);
+			accentColor = pressColor;
+			caseMaterial.color.set(scheme.case);
+			legendMaterial.color.set(scheme.legend);
+		} else {
+			const bg = token(style, "--bg", "#14181d");
+			const fg = token(style, "--fg", "#dfe4ea");
+			const surface = token(style, "--surface", "#1f252c");
+			accentColor = token(style, "--accent", "#8fa8ff");
+			pressColor = accentColor;
 
-		caseMaterial.color.copy(surface);
-		legendMaterial.color.copy(fg);
+			const isDark = bg.getHSL({ h: 0, s: 0, l: 0 }).l < 0.5;
+			// In dark mode the keys pick up a little of the accent so they do not read as flat grey.
+			alphaColor = isDark
+				? bg.clone().lerp(fg, 0.16).lerp(accentColor, 0.1)
+				: bg.clone().lerp(new Color(1, 1, 1), 0.7);
+			modifierColor = isDark
+				? bg.clone().lerp(fg, 0.08).lerp(accentColor, 0.06)
+				: bg.clone().lerp(fg, 0.05);
+
+			caseMaterial.color.copy(surface);
+			legendMaterial.color.copy(fg);
+		}
+
 		for (const visual of visuals) visual.lastDepth = -1;
 		requestRender();
 	}
@@ -255,17 +320,9 @@ export async function createKeyboardScene(
 			visual.group.position.y = KEY_REST_Y - depth * KEY_TRAVEL;
 			visual.material.color
 				.copy(visual.isModifier ? modifierColor : alphaColor)
-				.lerp(accentColor, depth * PRESS_TINT);
+				.lerp(pressColor, depth * PRESS_TINT);
 		}
 	}
-
-	const frameCorners = boxCorners(
-		boardWidth + CASE_MARGIN * 2,
-		boardDepth + CASE_MARGIN * 2,
-		-CASE_HEIGHT,
-		KEY_REST_Y + KEY_HEIGHT / 2,
-		BOARD_TILT,
-	);
 
 	function fitCamera(): void {
 		fitCameraToPoints(camera, frameCorners, {
@@ -325,10 +382,24 @@ export async function createKeyboardScene(
 	const colorScheme = window.matchMedia("(prefers-color-scheme: dark)");
 	colorScheme.addEventListener("change", applyPalette);
 
+	buildLayout();
 	applyPalette();
 	resize();
 
 	return {
+		setLayout(next) {
+			if (next === layoutName) return;
+			layoutName = next;
+			animator.releaseAll();
+			buildLayout();
+			applyPalette();
+			resize();
+		},
+		setKeycaps(next) {
+			if (next === keycapId) return;
+			keycapId = next;
+			applyPalette();
+		},
 		press(code) {
 			if (!visualByCode.has(code)) return;
 			animator.press(code);
@@ -349,7 +420,7 @@ export async function createKeyboardScene(
 			resizeObserver.disconnect();
 			themeObserver.disconnect();
 			colorScheme.removeEventListener("change", applyPalette);
-			for (const item of disposables) item.dispose();
+			clearLayout();
 			renderer.dispose();
 		},
 	};

@@ -1,4 +1,6 @@
 // src/lib/stores/prefs.svelte.ts
+import type { LayoutName } from "#lib/keyboard3d/layout.ts";
+import type { KeycapId } from "#lib/keyboard3d/themes.ts";
 import {
 	type AppStorage,
 	browserBackend,
@@ -29,6 +31,8 @@ export function nextTheme(theme: Theme): Theme {
 export class Preferences {
 	theme: Theme;
 	sound: boolean;
+	layout: LayoutName;
+	keycaps: KeycapId;
 
 	#storage: AppStorage;
 	#target: ThemeTarget | null;
@@ -45,6 +49,8 @@ export class Preferences {
 		const saved = storage.loadPreferences();
 		this.theme = $state(saved.theme);
 		this.sound = $state(saved.sound);
+		this.layout = $state(saved.layout);
+		this.keycaps = $state(saved.keycaps);
 		this.#applyTheme();
 	}
 
@@ -59,11 +65,26 @@ export class Preferences {
 		this.#save();
 	}
 
+	setLayout(layout: LayoutName) {
+		this.layout = layout;
+		this.#save();
+	}
+
+	setKeycaps(keycaps: KeycapId) {
+		this.keycaps = keycaps;
+		this.#save();
+	}
+
 	#applyTheme() {
 		if (this.#target) applyTheme(this.theme, this.#target);
 	}
 
 	#save() {
-		this.#storage.savePreferences({ theme: this.theme, sound: this.sound });
+		this.#storage.savePreferences({
+			theme: this.theme,
+			sound: this.sound,
+			layout: this.layout,
+			keycaps: this.keycaps,
+		});
 	}
 }
